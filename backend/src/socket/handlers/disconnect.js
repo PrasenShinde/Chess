@@ -1,4 +1,5 @@
 import onlineUsers from "../../services/OnlineUsers.js";
+import queue from "../../services/MatchmakingQueue.js";
 
 /**
  * Handles logic when a socket disconnects
@@ -12,6 +13,9 @@ export const handleDisconnect = (io, socket) => {
     // Remove user from the online users tracking service
     onlineUsers.removeUser(user.id);
     
+    // Also remove from queue if they were searching for a match
+    queue.remove(user.id);
+
     console.log(`User Disconnected: ${user.username} (${socket.id})`);
 
     // Broadcast the updated list of online users to all remaining clients

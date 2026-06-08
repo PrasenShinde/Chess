@@ -1,12 +1,10 @@
 import { io } from "socket.io-client";
-import { API_URL } from "../services/api";
 
 /**
  * Singleton socket instance
- * autoConnect is false so we can manually connect only when the user visits the Play page
- * withCredentials ensures cookies (JWT) are sent with the handshake
+ * Connect directly to backend to avoid Vite proxy drops for WebSockets
  */
-export const socket = io(API_URL.replace('/api', ''), {
+export const socket = io("http://localhost:3000", {
   autoConnect: false,
   withCredentials: true,
 });

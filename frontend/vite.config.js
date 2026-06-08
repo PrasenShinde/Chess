@@ -9,6 +9,10 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:3000',
         changeOrigin: true,
+      },
+      '/socket.io': {
+        target: 'http://localhost:3000',
+        ws: true,
       }
     }
   }

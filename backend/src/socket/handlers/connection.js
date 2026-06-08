@@ -1,4 +1,6 @@
 import onlineUsers from "../../services/OnlineUsers.js";
+import queue from "../../services/MatchmakingQueue.js";
+import { tryMatchmaking } from "../../services/Matchmaker.js";
 
 /**
  * Handles logic when a new socket connection is established
@@ -15,4 +17,10 @@ export const handleConnection = (io, socket) => {
 
   // Broadcast the updated list of online users to all connected clients
   io.emit("online-users", onlineUsers.getAllOnlineUsers());
+
+  // Listen for matchmaking request
+  socket.on("find-match", () => {
+    queue.add(user, socket);
+    tryMatchmaking();
+  });
 };
