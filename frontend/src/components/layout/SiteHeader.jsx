@@ -6,10 +6,10 @@ export default function SiteHeader() {
 
   const linkClass = ({ isActive }) =>
     [
-      'text-sm font-medium transition-colors',
-      isHome
-        ? (isActive ? 'text-white' : 'text-white/80 hover:text-white')
-        : (isActive ? 'text-primary' : 'text-ink/70 hover:text-ink'),
+      `rounded px-5 py-2 text-sm font-medium transition-colors border ${isHome
+        ? 'border-white text-white hover:bg-white hover:text-[#1A1A1A]'
+        : 'border-primary bg-primary text-cream hover:bg-primary/90'
+      }`
     ].join(' ')
 
   const headerClass = isHome

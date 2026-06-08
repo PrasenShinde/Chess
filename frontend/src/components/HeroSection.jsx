@@ -10,106 +10,113 @@ import { Link } from "react-router-dom";
 
 const themes = [
   {
-    bg: "#FAF8F3",
-    text: "#1A1A1A",
+    bg: "#CC3D3D",
+    text: "#FAF8F3",
     pieces: [
       {
-        src: "/assets/hero/king.svg",
-        top: "12%",
-        right: "20%",
-        size: 240,
-        depth: 1,
-      },
-      {
-        src: "/assets/hero/queen.svg",
-        top: "42%",
-        right: "5%",
-        size: 280,
-        depth: 1.5,
-      },
-      {
-        src: "/assets/hero/knight.svg",
-        top: "65%",
-        right: "30%",
-        size: 180,
+        // 1. Queen — Upper accent, top-right, floating high
+        src: "/chess-08.png",
+        top: "50%",
+        right: "70%",
+        size: 170,        // Was 150 → now 170
         depth: 2,
+        rotate: 10,
+        duration: 7,
+        zIndex: 50,
+      },
+      {
+        // 2. King — Dominant centerpiece, large and tilted
+        src: "/chess-04.png",
+        top: "25%",
+        right: "30%",
+        size: 140,        // Was 120 → now 140
+        depth: 1.3,
+        rotate: -30,
+        duration: 6,
+        zIndex: 30,
+      },
+      {
+        // 3. Knight — Foreground lower-right
+        src: "/chess-07.png",
+        top: "65%",
+        right: "45%",
+        size: 120,        // Was 280 → now 320
+        depth: 1.7,
+        rotate: -12,
+        duration: 8,
+        zIndex: 40,
       },
     ],
   },
-
   {
     bg: "#D4D0C8",
     text: "#1A1A1A",
     pieces: [
       {
-        src: "/assets/hero/trophy.svg",
-        top: "18%",
-        right: "15%",
-        size: 220,
-        depth: 1,
-      },
-      {
-        src: "/assets/hero/clock.svg",
+        src: "/chess-01.png",
         top: "50%",
-        right: "20%",
-        size: 260,
-        depth: 1.5,
-      },
-    ],
-  },
-
-  {
-    bg: "#CC3D3D",
-    text: "#FAF8F3",
-    pieces: [
-      {
-        src: "/assets/hero/king.svg",
-        top: "10%",
-        right: "18%",
-        size: 220,
-        depth: 1,
+        right: "70%",
+        size: 170,
+        depth: 2,
+        rotate: 35,
+        duration: 7,
+        zIndex: 50,
       },
       {
-        src: "/assets/hero/trophy.svg",
-        top: "42%",
-        right: "3%",
-        size: 260,
-        depth: 1.5,
+        src: "/chess-07.png",
+        top: "40%",
+        right: "25%",
+        size: 140,
+        depth: 1.3,
+        rotate: -22,
+        duration: 6,
+        zIndex: 30,
       },
       {
-        src: "/assets/hero/queen.svg",
-        top: "70%",
-        right: "28%",
+        src: "/chess-02.png",   // Symbol badge — kept small intentionally
+        top: "25%",
+        right: "70%",
+        size: 150,
+        depth: 1.7,
+        rotate: 15,
+        duration: 8,
+        zIndex: 40,
+      },
+      {
+        src: "/chess-06.png",   // Broken crown — kept small as accent
+        top: "75%",
+        right: "45%",
         size: 180,
         depth: 2,
+        rotate: 35,
+        duration: 7,
+        zIndex: 50,
       },
     ],
   },
-
   {
     bg: "#1A1A1A",
     text: "#FAF8F3",
     pieces: [
       {
-        src: "/assets/hero/knight.svg",
-        top: "12%",
-        right: "20%",
-        size: 260,
-        depth: 1,
+        src: "/chess-05.png",
+        top: "20%",
+        right: "18%",
+        size: 540,
+        depth: 1.3,
+        rotate: -22,
+        duration: 6,
+        zIndex: 30,
       },
       {
-        src: "/assets/hero/clock.svg",
-        top: "48%",
-        right: "8%",
-        size: 220,
-        depth: 1.5,
-      },
-      {
-        src: "/assets/hero/king.svg",
-        top: "72%",
-        right: "28%",
-        size: 180,
-        depth: 2,
+        src: "/chess-03.png",   // Brilliant sign — small badge
+        top: "68%",
+        right: "80%",
+        size: 150,
+        depth: 1.7,
+        rotate: -15,
+        duration: 8,
+        zIndex: 40,
       },
     ],
   },
@@ -121,6 +128,9 @@ function FloatingObject({
   right,
   size,
   depth,
+  rotate,
+  duration,
+  zIndex,
   mouseX,
   mouseY,
 }) {
@@ -144,21 +154,24 @@ function FloatingObject({
         right,
         x: xOffset,
         y: yOffset,
+        zIndex: zIndex || 10,
       }}
     >
       <motion.img
         src={src}
         alt=""
-        className="drop-shadow-2xl"
+        className="max-w-none"
         style={{
           width: size,
+          filter: "drop-shadow(0 25px 35px rgba(0,0,0,0.4))",
         }}
+        initial={{ rotate }}
         animate={{
-          y: [0, -20, 0],
-          rotate: [0, 5, -5, 0],
+          y: [0, -15, 0],
+          rotate: [rotate, rotate + 2, rotate],
         }}
         transition={{
-          duration: 8 + depth * 2,
+          duration: duration || 6,
           repeat: Infinity,
           ease: "easeInOut",
         }}
@@ -208,36 +221,14 @@ export default function HeroSection() {
     <motion.section
       ref={containerRef}
       onMouseMove={handleMouseMove}
-      animate={{
-        backgroundColor: theme.bg,
-        color: theme.text,
-      }}
-      transition={{
-        duration: 1.2,
-        ease: "easeInOut",
-      }}
-      className="relative h-screen overflow-hidden"
+      animate={{ backgroundColor: theme.bg, color: theme.text }}
+      transition={{ duration: 1.2, ease: "easeInOut" }}
+      className="relative min-h-screen overflow-hidden"
     >
-      {/* giant background knight */}
-      <motion.img
-        src="/assets/hero/knight.svg"
-        alt=""
-        className="absolute right-[-200px] top-1/2 w-[800px] opacity-[0.05] blur-[2px]"
-        animate={{
-          rotate: [0, 6, 0, -6, 0],
-        }}
-        transition={{
-          duration: 20,
-          repeat: Infinity,
-          ease: "linear",
-        }}
-      />
+      <div className="mx-auto max-w-7xl min-h-screen flex items-center px-6 md:px-8 lg:px-12 relative z-20 pt-24">
+        <div className="w-full md:max-w-[55%] lg:max-w-[50%]">
 
-      {/* content */}
-      <div className="mx-auto max-w-7xl h-full flex items-center px-8 relative z-20">
-        <div className="max-w-2xl">
-
-          <h1 className="text-6xl md:text-7xl font-bold leading-tight">
+          <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold leading-tight">
             Play.
             <br />
             Learn.
@@ -245,54 +236,39 @@ export default function HeroSection() {
             Dominate.
           </h1>
 
-          <p className="mt-6 text-xl opacity-80 leading-relaxed max-w-xl">
+          <p className="mt-6 text-base md:text-xl opacity-80 leading-relaxed max-w-xl">
             Play chess against real opponents,
             improve your strategy, and become unstoppable.
           </p>
 
-          <div className="mt-10 flex gap-4">
+          <div className="mt-8 md:mt-10 flex flex-wrap gap-4">
             <Link
               to="/signup"
-              className="px-8 py-4 rounded-xl bg-[#CC3D3D] text-white font-semibold hover:scale-105 transition"
+              className="px-6 md:px-8 py-3 md:py-4 rounded-xl border border-current font-semibold hover:scale-105 transition text-sm md:text-base"
             >
               Start Playing
             </Link>
 
             <Link
               to="/learn"
-              className="px-8 py-4 rounded-xl border border-current font-semibold hover:scale-105 transition"
+              className="px-6 md:px-8 py-3 md:py-4 rounded-xl border border-current font-semibold hover:scale-105 transition text-sm md:text-base"
             >
               Learn Chess
             </Link>
           </div>
-
-          <div className="mt-14 flex items-center gap-3">
-            <div className="flex">
-              {[...Array(5)].map((_, i) => (
-                <span key={i} className="text-xl">
-                  ★
-                </span>
-              ))}
-            </div>
-
-            <span className="opacity-70">
-              Trusted by thousands of chess players
-            </span>
-          </div>
         </div>
       </div>
 
-      {/* floating pieces */}
-      <div className="hidden md:block absolute inset-0 z-10">
+      {/* Floating pieces — visible md+ */}
+      <div className="hidden md:block absolute inset-y-0 right-0 w-1/2 z-10 overflow-visible pointer-events-none">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentTheme}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{
-              duration: 1,
-            }}
+            transition={{ duration: 1 }}
+            className="w-full h-full relative"
           >
             {theme.pieces.map((piece, index) => (
               <FloatingObject
