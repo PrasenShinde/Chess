@@ -1,23 +1,37 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { Eye, EyeOff } from 'lucide-react'
 import SiteHeader from '../components/layout/SiteHeader.jsx'
 import AuthPanel from '../components/auth/AuthPanel.jsx'
-import { authService, API_URL } from '../services/api.js'
+import { API_URL } from '../services/api.js'
+import { useAuth } from '../context/AuthContext'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const navigate = useNavigate()
+  const { login } = useAuth() || {}
 
   const handleLogin = async (e) => {
     e.preventDefault()
     setError('')
     try {
-      await authService.login(email, password)
-      navigate('/dashboard')
+      if (login) {
+        await login(email, password)
+      } else {
+        // fallback if context fails somehow
+        const { authService } = await import('../services/api.js')
+        await authService.login(email, password)
+      }
+      navigate('/home')
     } catch (err) {
-      setError(err.message || 'Login failed. Please try again.')
+      if (err.message === 'Invalid credentials') {
+        setError('Wrong email or password. Please try again.')
+      } else {
+        setError(err.message || 'Login failed. Please try again.')
+      }
     }
   }
 
@@ -65,17 +79,31 @@ export default function LoginPage() {
             >
               Password
             </label>
-            <input
-              id="login-password"
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full rounded-lg border border-accent bg-cream px-3 py-2.5 text-ink outline-none ring-primary/30 transition-shadow placeholder:text-ink/40 focus:ring-2"
-              placeholder="••••••••"
-            />
+            <div className="relative">
+              <input
+                id="login-password"
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full rounded-lg border border-accent bg-cream px-3 py-2.5 pr-10 text-ink outline-none ring-primary/30 transition-shadow placeholder:text-ink/40 focus:ring-2"
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 flex items-center pr-3 text-ink/60 hover:text-ink transition-colors"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? (
+                  <EyeOff className="h-5 w-5" />
+                ) : (
+                  <Eye className="h-5 w-5" />
+                )}
+              </button>
+            </div>
           </div>
           <button
             type="submit"

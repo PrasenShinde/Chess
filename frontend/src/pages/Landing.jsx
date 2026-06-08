@@ -7,6 +7,7 @@ import {
   useTransform,
 } from "framer-motion";
 import { Link } from "react-router-dom";
+import SiteHeader from "../components/layout/SiteHeader.jsx";
 
 const themes = [
   {
@@ -180,7 +181,7 @@ function FloatingObject({
   );
 }
 
-export default function HeroSection() {
+export default function Landing() {
   const [currentTheme, setCurrentTheme] = useState(0);
 
   const containerRef = useRef(null);
@@ -225,6 +226,7 @@ export default function HeroSection() {
       transition={{ duration: 1.2, ease: "easeInOut" }}
       className="relative min-h-screen overflow-hidden"
     >
+      <SiteHeader />
       <div className="mx-auto max-w-7xl min-h-screen flex items-center px-6 md:px-8 lg:px-12 relative z-20 pt-24">
         <div className="w-full md:max-w-[55%] lg:max-w-[50%]">
 
