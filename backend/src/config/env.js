@@ -12,6 +12,7 @@ const envSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().min(1, "Google Client ID is required"),
   GOOGLE_CLIENT_SECRET: z.string().min(1, "Google Client Secret is required"),
   FRONTEND_URL: z.string().url().default("http://localhost:3000"),
+  REDIS_URL: z.string().default("redis://localhost:6379"),
 });
 
 const _env = envSchema.safeParse(process.env);

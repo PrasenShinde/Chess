@@ -5,7 +5,7 @@ import SignupPage from './pages/SignupPage.jsx'
 import Home from './pages/Home.jsx'
 import ProfilePage from './pages/ProfilePage.jsx'
 import Play from './pages/Play.jsx'
-import Playing from './pages/Playing.jsx'
+import PlayGame from './pages/PlayGame.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
 
 function App() {
@@ -19,7 +19,7 @@ function App() {
         <Route path="/dashboard" element={<Navigate to="/home" replace />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/play" element={<Play />} />
-        <Route path="/playing/:roomId" element={<Playing />} />
+        <Route path="/playing/:roomId" element={<PlayGame />} />
       </Routes>
     </AuthProvider>
   )

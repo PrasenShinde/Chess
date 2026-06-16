@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import queue from "./MatchmakingQueue.js";
 import roomManager from "./RoomManager.js";
+import gameManager from "../game/GameManager.js";
 
 class Matchmaker {
   constructor(io) {
@@ -30,6 +31,11 @@ class Matchmaker {
 
       // Store in RoomManager
       roomManager.createRoom(roomId, whitePlayer.user, blackPlayer.user);
+
+      // Create game in Redis
+      gameManager.createGame(roomId, whitePlayer.user, blackPlayer.user).catch(err => {
+        console.error("[Matchmaker] Failed to create game in Redis", err);
+      });
 
       // Join both sockets to the newly created room
       whitePlayer.socket.join(roomId);
