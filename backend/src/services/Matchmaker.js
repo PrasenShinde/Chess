@@ -1,59 +1,76 @@
 import crypto from "crypto";
 import queue from "./MatchmakingQueue.js";
 import roomManager from "./RoomManager.js";
+import socketRegistry from "./SocketRegistry.js";
 import gameManager from "../game/GameManager.js";
 
 class Matchmaker {
   constructor(io) {
     this.io = io;
+    this.isMatching = false;
   }
 
-  /**
-   * Attempt to match players from the queue
-   */
-  matchPlayers() {
-    // If we have at least 2 players in the queue, match them
-    if (queue.size >= 2) {
-      const players = queue.extractTwoPlayers();
-      
-      if (!players) return; // Failsafe
+  async matchPlayers() {
+    if (this.isMatching) {
+      return;
+    }
 
-      const [player1, player2] = players;
-      
-      // Generate a unique room ID (e.g., room_a8x3f9)
-      const roomId = `room_${crypto.randomUUID().slice(0, 8)}`;
+    this.isMatching = true;
 
-      // Assign colors randomly (50% chance for player1 to be white)
-      const isPlayer1White = Math.random() < 0.5;
-      
-      const whitePlayer = isPlayer1White ? player1 : player2;
-      const blackPlayer = isPlayer1White ? player2 : player1;
+    try {
+      while ((await queue.size()) >= 2) {
+        const players = await queue.extractTwoPlayers((userId) => socketRegistry.get(userId));
 
-      // Store in RoomManager
-      roomManager.createRoom(roomId, whitePlayer.user, blackPlayer.user);
+        if (!players) {
+          break;
+        }
 
-      // Create game in Redis
-      gameManager.createGame(roomId, whitePlayer.user, blackPlayer.user).catch(err => {
-        console.error("[Matchmaker] Failed to create game in Redis", err);
-      });
+        const [player1, player2] = players;
+        const roomId = `room_${crypto.randomUUID().slice(0, 8)}`;
 
-      // Join both sockets to the newly created room
-      whitePlayer.socket.join(roomId);
-      blackPlayer.socket.join(roomId);
+        const isPlayer1White = Math.random() < 0.5;
+        const whitePlayer = isPlayer1White ? player1 : player2;
+        const blackPlayer = isPlayer1White ? player2 : player1;
 
-      // Emit "match-found" to everyone in the room with the roomId
-      this.io.to(roomId).emit("match-found", roomId);
-      
-      console.log(`[Matchmaker] Match created between ${whitePlayer.user.username} and ${blackPlayer.user.username} in ${roomId}`);
+        await gameManager.createGame(roomId, whitePlayer.user, blackPlayer.user);
+        roomManager.createRoom(roomId, whitePlayer.user, blackPlayer.user);
 
-      // Recursively call in case there are more pairs waiting in the queue
-      this.matchPlayers();
+        whitePlayer.socket.join(roomId);
+        blackPlayer.socket.join(roomId);
+
+        const playersPayload = {
+          white: {
+            id: whitePlayer.user.id,
+            username: whitePlayer.user.username,
+          },
+          black: {
+            id: blackPlayer.user.id,
+            username: blackPlayer.user.username,
+          },
+        };
+
+        whitePlayer.socket.emit("match-found", {
+          roomId,
+          color: "white",
+          players: playersPayload,
+        });
+
+        blackPlayer.socket.emit("match-found", {
+          roomId,
+          color: "black",
+          players: playersPayload,
+        });
+
+        console.log(
+          `[Matchmaker] ${whitePlayer.user.username} (white) vs ${blackPlayer.user.username} (black) in ${roomId}`,
+        );
+      }
+    } finally {
+      this.isMatching = false;
     }
   }
 }
 
-// We instantiate it lazily or manually inject `io` where needed, 
-// but typically a singleton service can just expose a setup/run method.
 let matchmakerInstance = null;
 
 export const initMatchmaker = (io) => {
@@ -64,6 +81,8 @@ export const initMatchmaker = (io) => {
 
 export const tryMatchmaking = () => {
   if (matchmakerInstance) {
-    matchmakerInstance.matchPlayers();
+    matchmakerInstance.matchPlayers().catch((err) => {
+      console.error("[Matchmaker] Failed to match players", err);
+    });
   }
 };

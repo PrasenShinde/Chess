@@ -7,7 +7,7 @@ export default function SiteHeader() {
   const isHome = location.pathname === '/';
   const isAuthPage = location.pathname === '/login' || location.pathname === '/signup';
 
-  const linkClass = ({ isActive }) =>
+  const linkClass = () =>
     [
       `rounded px-5 py-2 text-sm font-medium transition-colors border ${isHome
         ? 'border-white text-white hover:bg-white hover:text-[#1A1A1A]'

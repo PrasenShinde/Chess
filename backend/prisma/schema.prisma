@@ -12,6 +12,18 @@ enum Role {
   ADMIN
 }
 
+enum GameStatus {
+  PLAYING
+  COMPLETED
+  ABANDONED
+}
+
+enum GameResult {
+  WHITE_WIN
+  BLACK_WIN
+  DRAW
+}
+
 model User {
   id            String         @id @default(uuid())
   username      String?        @unique
@@ -19,12 +31,15 @@ model User {
   password      String?        // Nullable because OAuth users might not have a password
   avatar        String?
   googleId      String?        @unique
-  rating        Int            @default(200)
+  rating        Int            @default(1200)
   role          Role           @default(USER)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   
   refreshTokens RefreshToken[]
+  whiteGames    Game[]         @relation("WhitePlayer")
+  blackGames    Game[]         @relation("BlackPlayer")
+  wonGames      Game[]         @relation("Winner")
 
   @@map("users")
 }
@@ -39,4 +54,33 @@ model RefreshToken {
 
   @@index([userId])
   @@map("refresh_tokens")
+}
+
+model Game {
+  id                  String      @id @default(uuid())
+  roomId              String      @unique
+  whitePlayerId       String
+  whitePlayer         User        @relation("WhitePlayer", fields: [whitePlayerId], references: [id], onDelete: Cascade)
+  whitePlayerUsername String
+  blackPlayerId       String
+  blackPlayer         User        @relation("BlackPlayer", fields: [blackPlayerId], references: [id], onDelete: Cascade)
+  blackPlayerUsername String
+  winnerId            String?
+  winner              User?       @relation("Winner", fields: [winnerId], references: [id], onDelete: SetNull)
+  result              GameResult?
+  status              GameStatus  @default(PLAYING)
+  reason              String?
+  finalFen            String?
+  pgn                 String?
+  moves               Json        @default("[]")
+  startedAt           DateTime    @default(now())
+  endedAt             DateTime?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  @@index([whitePlayerId])
+  @@index([blackPlayerId])
+  @@index([winnerId])
+  @@index([status])
+  @@map("games")
 }

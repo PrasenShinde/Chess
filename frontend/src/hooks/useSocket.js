@@ -26,9 +26,6 @@ export const useSocket = () => {
     socket.on("disconnect", onDisconnect);
     socket.io.on("reconnect_attempt", onReconnectAttempt);
 
-    // Initial check in case it connects before the effect runs
-    setIsConnected(socket.connected);
-
     // Cleanup listeners on unmount
     return () => {
       socket.off("connect", onConnect);

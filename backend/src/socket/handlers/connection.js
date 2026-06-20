@@ -1,26 +1,27 @@
 import onlineUsers from "../../services/OnlineUsers.js";
 import queue from "../../services/MatchmakingQueue.js";
+import socketRegistry from "../../services/SocketRegistry.js";
 import { tryMatchmaking } from "../../services/Matchmaker.js";
+import { socketRateLimit } from "../../middleware/socketRateLimit.middleware.js";
 
-/**
- * Handles logic when a new socket connection is established
- * @param {import("socket.io").Server} io - The main Socket.io server instance
- * @param {import("socket.io").Socket} socket - The connected socket
- */
 export const handleConnection = (io, socket) => {
-  const user = socket.user; // Attached by the auth middleware
+  const user = socket.user;
 
-  // Add user to the online users tracking service
   onlineUsers.addUser(user.id, socket.id);
+  socketRegistry.register(user.id, socket);
 
   console.log(`User Connected: ${user.username} (${socket.id})`);
-
-  // Broadcast the updated list of online users to all connected clients
   io.emit("online-users", onlineUsers.getAllOnlineUsers());
 
-  // Listen for matchmaking request
-  socket.on("find-match", () => {
-    queue.add(user, socket);
+  const limitMatchmaking = socketRateLimit("matchmaking", { max: 30 });
+
+  socket.on("find-match", limitMatchmaking(socket, async () => {
+    await queue.add(user);
     tryMatchmaking();
-  });
+  }));
+
+  socket.on("cancel-match", limitMatchmaking(socket, async () => {
+    await queue.remove(user.id);
+    socket.emit("match-cancelled");
+  }));
 };

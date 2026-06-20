@@ -1,11 +1,10 @@
 import { getRedisClient } from "../redis/redisClient.js";
 
 export const RedisGameStore = {
-  async saveGame(roomId, gameData) {
+  async saveGame(roomId, gameData, ttlSeconds = 86400) {
     const client = getRedisClient();
     const key = `game:${roomId}`;
-    // Save with 24 hour expiration to prevent memory leaks
-    await client.set(key, JSON.stringify(gameData), { EX: 86400 });
+    await client.set(key, JSON.stringify(gameData), { EX: ttlSeconds });
   },
 
   async getGame(roomId) {
@@ -16,13 +15,13 @@ export const RedisGameStore = {
     return JSON.parse(data);
   },
 
-  async updateGame(roomId, gameData) {
-    await this.saveGame(roomId, gameData);
+  async updateGame(roomId, gameData, ttlSeconds = 86400) {
+    await this.saveGame(roomId, gameData, ttlSeconds);
   },
 
   async deleteGame(roomId) {
     const client = getRedisClient();
     const key = `game:${roomId}`;
     await client.del(key);
-  }
+  },
 };

@@ -1,4 +1,5 @@
 import { env } from "../config/env.js";
+import { setCsrfCookie, clearCsrfCookie } from "./csrf.js";
 
 export const setAuthCookies = (res, accessToken, refreshToken) => {
   const cookieOptions = {
@@ -17,6 +18,8 @@ export const setAuthCookies = (res, accessToken, refreshToken) => {
     ...cookieOptions,
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   });
+
+  setCsrfCookie(res);
 };
 
 export const clearAuthCookies = (res) => {
@@ -29,4 +32,5 @@ export const clearAuthCookies = (res) => {
 
   res.clearCookie("accessToken", cookieOptions);
   res.clearCookie("refreshToken", cookieOptions);
+  clearCsrfCookie(res);
 };

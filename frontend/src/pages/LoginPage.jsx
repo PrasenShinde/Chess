@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { Eye, EyeOff } from 'lucide-react'
 import SiteHeader from '../components/layout/SiteHeader.jsx'
 import AuthPanel from '../components/auth/AuthPanel.jsx'
@@ -12,20 +12,19 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const navigate = useNavigate()
-  const { login } = useAuth() || {}
+  const location = useLocation()
+  const [searchParams] = useSearchParams()
+  const { login } = useAuth()
+
+  const oauthError = searchParams.get('error')
 
   const handleLogin = async (e) => {
     e.preventDefault()
     setError('')
     try {
-      if (login) {
-        await login(email, password)
-      } else {
-        // fallback if context fails somehow
-        const { authService } = await import('../services/api.js')
-        await authService.login(email, password)
-      }
-      navigate('/home')
+      await login(email, password)
+      const redirectTo = location.state?.from?.pathname || '/home'
+      navigate(redirectTo, { replace: true })
     } catch (err) {
       if (err.message === 'Invalid credentials') {
         setError('Wrong email or password. Please try again.')
@@ -55,7 +54,11 @@ export default function LoginPage() {
         }
       >
         <form className="space-y-5" onSubmit={handleLogin}>
-          {error && <div className="text-red-500 text-sm text-center">{error}</div>}
+          {(error || oauthError) && (
+            <div className="text-red-500 text-sm text-center">
+              {error || 'Google sign-in failed. Please try again.'}
+            </div>
+          )}
           <div className="space-y-2">
             <label htmlFor="login-email" className="text-sm font-medium text-ink">
               Email

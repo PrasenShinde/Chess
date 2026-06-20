@@ -1,106 +1,224 @@
-# Chess.AI 🚀
+# Chess.AI
 
-A real-time, AI-powered chess platform built with React, Express, Socket.io, and TensorFlow.js. Play chess against intelligent bots or real opponents with instant feedback and beautiful visualizations.
+A real-time chess platform built with React, Express, Socket.IO, Prisma, PostgreSQL, and Redis.
 
-## ✨ Features
+## Features
 
-- ♟️ **Real-Time Gameplay**: Instant move updates with Socket.io for seamless multiplayer action.
-- 🤖 **AI Bot Matches**: Play against smart AI bots powered by TensorFlow.js neural networks.
-- 💬 **Live Chat**: In-game chat to communicate with your opponent.
-- 🎨 **Modern UI**: Clean, responsive interface using Tailwind CSS.
-- 🔒 **Secure Authentication**: JWT-based authentication with secure password hashing.
+- Real-time gameplay with server-side move validation via `chess.js`
+- Redis-backed matchmaking queue and Redis distributed move locks
+- Random white/black assignment when a match is found
+- Cookie-based JWT auth with hashed refresh-token rotation
+- CSRF protection for state-changing auth requests
+- Protected frontend routes with automatic access-token refresh on `401`
+- Game persistence in PostgreSQL (moves, results, ratings, history)
+- Resign, draw offers, timeout claims, and disconnect handling
+- Socket and auth rate limiting
 
-## 🛠️ Tech Stack
+## Tech Stack
 
-- **Frontend**: React, Vite, Tailwind CSS, React Router
-- **Backend**: Node.js, Express, Socket.io
-- **Database**: SQLite with Prisma
-- **AI**: TensorFlow.js
+- Frontend: React, Vite, Tailwind CSS, React Router, Socket.IO client
+- Backend: Node.js, Express, Socket.IO
+- Database: PostgreSQL with Prisma
+- Realtime/cache: Redis
+- Chess rules: `chess.js`
 
-## 🚀 Getting Started
+## Prerequisites
 
-### Prerequisites
+Install these before running the app:
 
-- Node.js (v16 or higher)
-- npm or yarn
+- Node.js 18+
+- PostgreSQL 14+
+- Redis 6+
 
-### 1. Backend Setup
+### macOS (Homebrew)
 
 ```bash
-# Navigate to backend directory
+brew install postgresql@16 redis
+brew services start postgresql@16
+brew services start redis
+```
+
+### Linux (Ubuntu/Debian)
+
+```bash
+sudo apt update
+sudo apt install -y postgresql redis-server
+sudo systemctl start postgresql
+sudo systemctl start redis-server
+```
+
+## Database Setup
+
+Create a PostgreSQL database:
+
+```bash
+createdb chess
+```
+
+Or with `psql`:
+
+```sql
+CREATE DATABASE chess;
+```
+
+## Environment Variables
+
+### Backend
+
+```bash
 cd backend
-
-# Install dependencies
-npm install
-
-# Run database migration (creates database.db)
-npx prisma migrate dev --name init
-
-# Start the server
-npm run dev
+cp .env.example .env
 ```
 
-The server will start on `http://localhost:3000`.
+Update `backend/.env` with your secrets and database URL:
 
-### 2. Frontend Setup
+```env
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/chess?schema=public
+REDIS_URL=redis://localhost:6379
+JWT_ACCESS_SECRET=your-long-access-secret
+JWT_REFRESH_SECRET=your-long-refresh-secret
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+FRONTEND_URL=http://localhost:5173
+```
+
+### Frontend
 
 ```bash
-# Navigate to frontend directory
 cd frontend
+cp .env.example .env
+```
 
-# Install dependencies
-npm install
+Recommended dev values:
 
-# Start the development server
+```env
+VITE_API_URL=/api
+VITE_SOCKET_URL=http://localhost:3000
+```
+
+The Vite dev server proxies `/api` and `/socket.io` to the backend on port `3000`.
+
+## Install Dependencies
+
+From the repo root:
+
+```bash
+cd backend && npm install
+cd ../frontend && npm install
+```
+
+## Run Database Migrations
+
+```bash
+cd backend
+npx prisma migrate dev
+```
+
+This creates the `users`, `refresh_tokens`, and `games` tables. Default user rating is `1200`.
+
+## Start Redis and PostgreSQL
+
+Make sure both services are running:
+
+```bash
+redis-cli ping
+# expected: PONG
+
+pg_isready
+# expected: accepting connections
+```
+
+## Run the App
+
+### Terminal 1 — Backend
+
+```bash
+cd backend
 npm run dev
 ```
 
-The application will be accessible at `http://localhost:5173`.
+Backend: `http://localhost:3000`
 
-### 3. AI Models
+### Terminal 2 — Frontend
 
-The AI models are automatically downloaded from Google Cloud Storage on the first run. Ensure you have an internet connection during the first launch.
-
-## 🎮 How to Play
-
-1. **Signup/Login**: Create an account or log in.
-2. **Dashboard**: Click "Start Game" to begin.
-3. **Choose Mode**:
-   - **Play Online**: Match with another player.
-   - **Play with Bot**: Challenge an AI opponent.
-4. **Play**: Drag and drop pieces to move. The interface will show legal moves, threats, and evaluation.
-
-## 📁 Project Structure
-
+```bash
+cd frontend
+npm run dev
 ```
+
+Frontend: `http://localhost:5173`
+
+## Run Tests
+
+### Backend
+
+```bash
+cd backend
+npm test
+```
+
+Covers token hashing, move validation, CSRF checks, and socket rate limiting.
+
+### Frontend
+
+```bash
+cd frontend
+npm run lint
+npm run build
+```
+
+## How to Play
+
+1. Sign up or log in at `http://localhost:5173`
+2. Open **Start Game** from the dashboard
+3. Click **Find Match**
+4. When matched, one player is assigned **white**, the other **black**
+5. Drag pieces to move; use resign/draw/timeout controls as needed
+
+## API Overview
+
+- `GET /api/auth/csrf` — initialize CSRF cookie
+- `POST /api/auth/register|login|refresh|logout`
+- `GET /api/auth/me`
+- `GET /api/games/stats`
+- `GET /api/games/recent`
+
+## Socket Events
+
+- `find-match`, `cancel-match`, `match-found`
+- `move`, `move-made`, `move-error`
+- `resign`, `offer-draw`, `accept-draw`, `claim-timeout`
+- `resume-game`, `game-over`
+
+## Project Structure
+
+```text
 backend/
-├── src/
-│   ├── config/        # Environment and configuration
-│   ├── socket/        # Socket.io event handlers
-│   ├── services/      # Business logic and AI integrations
-│   └── prisma/        # Database models and client
-└── prisma.schema      # Database schema definition
+  prisma/              Schema and migrations
+  src/
+    auth/              Google OAuth
+    config/            Environment validation
+    controllers/       HTTP controllers
+    game/              Chess room, Redis store, locks
+    middleware/        Auth, CSRF, rate limits
+    routes/            Express routes
+    services/          Matchmaking, rooms, socket registry
+    socket/            Socket.IO handlers
+    utils/             JWT, cookies, CSRF, token hashing
 
 frontend/
-├── src/
-│   ├── components/    # Reusable UI components
-│   ├── context/       # Authentication and global state
-│   ├── pages/         # Page components
-│   ├── services/      # API and AI service functions
-│   └── assets/        # Static assets and AI models
-└── vite.config.js     # Vite configuration
+  src/
+    components/        UI and auth guard
+    context/           Auth state
+    hooks/             Socket/game hooks
+    pages/             Routes including /learn
+    services/          API client with refresh + CSRF
+    socket/            Socket.IO client
 ```
 
-## 🧩 AI Integration Details
+## Notes
 
-The AI functionality is handled by the backend services:
-
-- `services/aiService.js`: Loads pre-trained TensorFlow.js models for move prediction and board evaluation.
-- `services/matchmaker.js`: Manages matchmaking logic for online play.
-
-Models are stored in Google Cloud Storage and automatically downloaded to `frontend/src/assets/models/` on first use.
-
-## 🤝 Contributing
-
-Contributions are welcome! Feel free to open an issue or submit a pull request.
-
+- Refresh tokens are hashed with SHA256 before storage in PostgreSQL.
+- Active games live in Redis; completed games remain in PostgreSQL.
+- Matchmaking queue is stored in Redis so queue state survives backend restarts.
+- For production, set `NODE_ENV=production`, use HTTPS, and configure real OAuth credentials.

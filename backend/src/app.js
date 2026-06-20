@@ -6,6 +6,7 @@ import passport from "./auth/passport.js";
 import { env } from "./config/env.js";
 
 import authRoutes from "./routes/auth.routes.js";
+import gameRoutes from "./routes/game.routes.js";
 
 const app = express();
 
@@ -28,6 +29,7 @@ app.use(passport.initialize());
 
 // Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/games", gameRoutes);
 
 // Health check
 app.get("/health", (req, res) => {

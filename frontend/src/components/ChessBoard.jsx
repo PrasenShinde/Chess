@@ -1,7 +1,14 @@
 import { Chessboard } from "react-chessboard";
 
-export default function ChessBoard({ fen, playerColor, onMove, status }) {
+export default function ChessBoard({ fen, playerColor, onMove, status, turn }) {
   const onPieceDrop = (sourceSquare, targetSquare, piece) => {
+    const pieceColor = piece[0] === "w" ? "white" : "black";
+    const turnColor = turn === "w" ? "white" : "black";
+
+    if (status !== "playing" || pieceColor !== playerColor || turnColor !== playerColor) {
+      return false;
+    }
+
     // Basic promotion logic: if a pawn reaches the end rank, we default to queen
     const isPawnPromotion = piece.toLowerCase().includes('p') && (targetSquare[1] === '8' || targetSquare[1] === '1');
     const promotion = isPawnPromotion ? "q" : undefined;

@@ -8,10 +8,18 @@ export const registerRoomHandlers = (io, socket) => {
   });
   
   socket.on("room-chat", ({ roomId, message }) => {
-    // Basic room chat placeholder
+    if (!roomId || typeof message !== "string") {
+      return;
+    }
+
+    const trimmedMessage = message.trim();
+    if (!trimmedMessage || trimmedMessage.length > 500) {
+      return;
+    }
+
     socket.to(roomId).emit("room-chat", {
       sender: user.username,
-      message,
+      message: trimmedMessage,
       timestamp: new Date()
     });
   });

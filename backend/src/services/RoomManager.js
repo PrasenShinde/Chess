@@ -48,6 +48,15 @@ class RoomManager {
       console.log(`[RoomManager] Room removed: ${roomId}`);
     }
   }
+
+  findRoomByUserId(userId) {
+    for (const room of this.rooms.values()) {
+      if (room.whitePlayer.id === userId || room.blackPlayer.id === userId) {
+        return room;
+      }
+    }
+    return null;
+  }
 }
 
 // Export singleton instance

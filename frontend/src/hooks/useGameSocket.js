@@ -10,6 +10,9 @@ export const useGameSocket = (roomId) => {
   const [gameOverReason, setGameOverReason] = useState(null);
   const [whitePlayer, setWhitePlayer] = useState(null);
   const [blackPlayer, setBlackPlayer] = useState(null);
+  const [playerColor, setPlayerColor] = useState(null);
+  const [winnerUsername, setWinnerUsername] = useState(null);
+  const [drawOfferBy, setDrawOfferBy] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -22,62 +25,85 @@ export const useGameSocket = (roomId) => {
     socket.emit("resume-game", { roomId });
 
     const handleResumeGame = (data) => {
-      console.log("Game resumed:", data);
       setBoardFen(data.fen || "start");
       setMoves(data.moves || []);
       setTurn(data.turn || "w");
       setStatus(data.status || "playing");
-      setWhitePlayer({ id: data.whitePlayerId, username: data.whitePlayerUsername });
-      setBlackPlayer({ id: data.blackPlayerId, username: data.blackPlayerUsername });
-      
+      setPlayerColor(data.playerColor || null);
+      setWhitePlayer(
+        data.players?.white || { id: data.whitePlayerId, username: data.whitePlayerUsername },
+      );
+      setBlackPlayer(
+        data.players?.black || { id: data.blackPlayerId, username: data.blackPlayerUsername },
+      );
+      setDrawOfferBy(data.drawOfferBy || null);
+
       if (data.status === "game_over") {
         setWinner(data.winner);
+        setWinnerUsername(data.winnerUsername || null);
         setGameOverReason(data.reason);
       }
     };
 
     const handleMoveMade = (data) => {
-      console.log("Move made:", data);
       setBoardFen(data.fen);
       setTurn(data.turn);
-      if (data.move && data.move.san) {
+      if (data.move?.san) {
         setMoves((prev) => [...prev, data.move.san]);
       }
+      setDrawOfferBy(null);
       setError(null);
     };
 
     const handleMoveError = (data) => {
-      console.error("Move error:", data);
       setError(data.message);
     };
 
     const handleGameOver = (data) => {
-      console.log("Game over:", data);
       setStatus("game_over");
       setWinner(data.winner);
+      setWinnerUsername(data.winnerUsername || null);
       setGameOverReason(data.reason);
+      setDrawOfferBy(null);
+    };
+
+    const handleDrawOffered = (data) => {
+      setDrawOfferBy(data.offeredBy);
     };
 
     socket.on("resume-game", handleResumeGame);
     socket.on("move-made", handleMoveMade);
     socket.on("move-error", handleMoveError);
     socket.on("game-over", handleGameOver);
+    socket.on("draw-offered", handleDrawOffered);
 
     return () => {
       socket.off("resume-game", handleResumeGame);
       socket.off("move-made", handleMoveMade);
       socket.off("move-error", handleMoveError);
       socket.off("game-over", handleGameOver);
+      socket.off("draw-offered", handleDrawOffered);
     };
   }, [roomId]);
 
   const makeMove = useCallback((from, to, promotion = "q") => {
-    socket.emit("move", {
-      roomId,
-      from,
-      to,
-      promotion,
-    });
+    socket.emit("move", { roomId, from, to, promotion });
+  }, [roomId]);
+
+  const resign = useCallback(() => {
+    socket.emit("resign", { roomId });
+  }, [roomId]);
+
+  const offerDraw = useCallback(() => {
+    socket.emit("offer-draw", { roomId });
+  }, [roomId]);
+
+  const acceptDraw = useCallback(() => {
+    socket.emit("accept-draw", { roomId });
+  }, [roomId]);
+
+  const claimTimeout = useCallback(() => {
+    socket.emit("claim-timeout", { roomId });
   }, [roomId]);
 
   return {
@@ -86,10 +112,17 @@ export const useGameSocket = (roomId) => {
     turn,
     status,
     winner,
+    winnerUsername,
     gameOverReason,
     whitePlayer,
     blackPlayer,
+    playerColor,
+    drawOfferBy,
     error,
     makeMove,
+    resign,
+    offerDraw,
+    acceptDraw,
+    claimTimeout,
   };
 };

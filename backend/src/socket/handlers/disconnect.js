@@ -1,24 +1,43 @@
 import onlineUsers from "../../services/OnlineUsers.js";
 import queue from "../../services/MatchmakingQueue.js";
+import socketRegistry from "../../services/SocketRegistry.js";
+import roomManager from "../../services/RoomManager.js";
+import gameManager from "../../game/GameManager.js";
 
-/**
- * Handles logic when a socket disconnects
- * @param {import("socket.io").Server} io - The main Socket.io server instance
- * @param {import("socket.io").Socket} socket - The disconnecting socket
- */
 export const handleDisconnect = (io, socket) => {
   const user = socket.user;
 
-  if (user) {
-    // Remove user from the online users tracking service
-    onlineUsers.removeUser(user.id);
-    
-    // Also remove from queue if they were searching for a match
-    queue.remove(user.id);
-
-    console.log(`User Disconnected: ${user.username} (${socket.id})`);
-
-    // Broadcast the updated list of online users to all remaining clients
-    io.emit("online-users", onlineUsers.getAllOnlineUsers());
+  if (!user) {
+    return;
   }
+
+  onlineUsers.removeUser(user.id);
+  socketRegistry.unregister(user.id);
+  queue.remove(user.id).catch((error) => {
+    console.error("[Disconnect] Failed to remove user from queue", error);
+  });
+
+  const activeRoom = roomManager.findRoomByUserId(user.id);
+  if (activeRoom) {
+    gameManager
+      .resignGame(activeRoom.roomId, user.id)
+      .then((result) => {
+        io.to(activeRoom.roomId).emit("game-over", {
+          winner: result.winner,
+          winnerId: result.winnerId,
+          winnerUsername: result.winnerUsername,
+          reason: "disconnect",
+        });
+        return gameManager.endGame(activeRoom.roomId);
+      })
+      .then(() => {
+        roomManager.removeRoom(activeRoom.roomId);
+      })
+      .catch((error) => {
+        console.error("[Disconnect] Failed to resign active game", error);
+      });
+  }
+
+  console.log(`User Disconnected: ${user.username} (${socket.id})`);
+  io.emit("online-users", onlineUsers.getAllOnlineUsers());
 };

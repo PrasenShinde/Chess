@@ -3,12 +3,13 @@ import prisma from "../prisma/client.js";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../utils/jwt.js";
 import { setAuthCookies, clearAuthCookies } from "../utils/cookies.js";
 import { env } from "../config/env.js";
+import { hashToken } from "../utils/tokens.js";
 
 const storeRefreshToken = async (userId, token) => {
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
   await prisma.refreshToken.create({
     data: {
-      token,
+      token: hashToken(token),
       userId,
       expiresAt,
     },
@@ -96,10 +97,10 @@ export const refresh = async (req, res) => {
 
     // Check if token exists in DB (prevents reuse of revoked tokens)
     const storedToken = await prisma.refreshToken.findUnique({
-      where: { token: refreshToken },
+      where: { token: hashToken(refreshToken) },
     });
 
-    if (!storedToken) {
+    if (!storedToken || storedToken.expiresAt <= new Date()) {
       // Possible token reuse attack, invalidate all user tokens (optional but recommended)
       await prisma.refreshToken.deleteMany({ where: { userId: decoded.userId } });
       clearAuthCookies(res);
@@ -132,7 +133,7 @@ export const logout = async (req, res) => {
     const { refreshToken } = req.cookies;
     if (refreshToken) {
       await prisma.refreshToken.deleteMany({
-        where: { token: refreshToken },
+        where: { token: hashToken(refreshToken) },
       });
     }
     clearAuthCookies(res);

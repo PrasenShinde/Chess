@@ -1,28 +1,36 @@
-import { createContext, useContext, useState, useEffect } from 'react';
-import { authService } from '../services/api';
+import { createContext, useContext, useEffect, useState } from "react";
+import { authService, ensureCsrfToken } from "../services/api.js";
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 
-export function AuthProvider({ children }) {
+export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchUser = async () => {
+    const bootstrap = async () => {
       try {
+        await ensureCsrfToken();
         const data = await authService.me();
         setUser(data.user);
-      } catch (err) {
+      } catch {
         setUser(null);
       } finally {
         setLoading(false);
       }
     };
-    fetchUser();
+
+    bootstrap();
   }, []);
 
   const login = async (email, password) => {
     const data = await authService.login(email, password);
+    setUser(data.user);
+    return data;
+  };
+
+  const register = async (username, email, password) => {
+    const data = await authService.register(username, email, password);
     setUser(data.user);
     return data;
   };
@@ -33,10 +41,17 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, setUser }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, setUser }}>
       {children}
     </AuthContext.Provider>
   );
-}
+};
 
-export const useAuth = () => useContext(AuthContext);
+// eslint-disable-next-line react-refresh/only-export-components
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within AuthProvider");
+  }
+  return context;
+};

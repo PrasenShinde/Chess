@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import SiteHeader from '../components/layout/SiteHeader.jsx'
 import AuthPanel from '../components/auth/AuthPanel.jsx'
-import { authService, API_URL } from '../services/api.js'
+import { API_URL } from '../services/api.js'
+import { useAuth } from '../context/AuthContext'
 
 export default function SignupPage() {
   const [username, setUsername] = useState('')
@@ -10,12 +11,13 @@ export default function SignupPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const navigate = useNavigate()
+  const { register } = useAuth()
 
   const handleSignup = async (e) => {
     e.preventDefault()
     setError('')
     try {
-      await authService.register(username, email, password)
+      await register(username, email, password)
       navigate('/dashboard')
     } catch (err) {
       setError(err.message || 'Registration failed. Please try again.')

@@ -1,43 +1,52 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useSocket } from "../hooks/useSocket";
 import { useAuth } from "../context/AuthContext";
-import { Navigate, useNavigate } from "react-router-dom";
 import SiteHeader from "../components/layout/SiteHeader.jsx";
 
 export default function Play() {
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
   const { socket, isConnected } = useSocket();
   const [onlineCount, setOnlineCount] = useState(0);
   const [isSearching, setIsSearching] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user) {
-      // Connect to the socket server when the Play page mounts
-      socket.connect();
-
-      // Listen for the online users broadcast
-      const handleOnlineUsers = (usersArray) => {
-        setOnlineCount(usersArray.length);
-      };
-
-      // Listen for match-found
-      const handleMatchFound = (roomId) => {
-        console.log("Match found! Joining room:", roomId);
-        setIsSearching(false);
-        navigate(`/playing/${roomId}`);
-      };
-
-      socket.on("online-users", handleOnlineUsers);
-      socket.on("match-found", handleMatchFound);
-
-      // Cleanup on unmount
-      return () => {
-        socket.off("online-users", handleOnlineUsers);
-        socket.off("match-found", handleMatchFound);
-        socket.disconnect();
-      };
+    if (!user) {
+      return undefined;
     }
+
+    socket.connect();
+
+    const handleOnlineUsers = (usersArray) => {
+      setOnlineCount(usersArray.length);
+    };
+
+    const handleMatchFound = (match) => {
+      const roomId = typeof match === "string" ? match : match.roomId;
+      setIsSearching(false);
+      navigate(`/playing/${roomId}`, {
+        state: {
+          color: match.color,
+          players: match.players,
+        },
+      });
+    };
+
+    const handleMatchCancelled = () => {
+      setIsSearching(false);
+    };
+
+    socket.on("online-users", handleOnlineUsers);
+    socket.on("match-found", handleMatchFound);
+    socket.on("match-cancelled", handleMatchCancelled);
+
+    return () => {
+      socket.off("online-users", handleOnlineUsers);
+      socket.off("match-found", handleMatchFound);
+      socket.off("match-cancelled", handleMatchCancelled);
+      socket.disconnect();
+    };
   }, [user, socket, navigate]);
 
   const handleFindMatch = () => {
@@ -46,17 +55,10 @@ export default function Play() {
     socket.emit("find-match");
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-svh bg-cream text-ink flex items-center justify-center">
-        Loading...
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
+  const handleCancelMatch = () => {
+    socket.emit("cancel-match");
+    setIsSearching(false);
+  };
 
   return (
     <div className="min-h-svh bg-cream text-ink flex flex-col">
@@ -78,22 +80,37 @@ export default function Play() {
         <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-accent rounded-xl bg-white/50 p-8 text-center">
           <h2 className="text-2xl font-bold mb-4">Ready to Play?</h2>
           <p className="text-ink/70 mb-8 max-w-md">
-            Click the button below to enter the matchmaking queue. We'll pair you with the next available opponent.
+            Enter matchmaking and you will be assigned white or black when an opponent is found.
           </p>
-          
-          <button
-            onClick={handleFindMatch}
-            disabled={!isConnected || isSearching}
-            className={`rounded-xl px-12 py-4 text-xl font-bold text-cream transition transform inline-block ${
-              !isConnected 
-                ? "bg-gray-400 cursor-not-allowed" 
-                : isSearching 
-                  ? "bg-primary/80 cursor-wait animate-pulse" 
+
+          {isSearching ? (
+            <div className="flex flex-col items-center gap-4">
+              <button
+                disabled
+                className="rounded-xl px-12 py-4 text-xl font-bold text-cream bg-primary/80 cursor-wait animate-pulse"
+              >
+                Searching for match...
+              </button>
+              <button
+                onClick={handleCancelMatch}
+                className="text-sm font-medium text-ink/70 hover:text-ink"
+              >
+                Cancel search
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleFindMatch}
+              disabled={!isConnected}
+              className={`rounded-xl px-12 py-4 text-xl font-bold text-cream transition transform inline-block ${
+                !isConnected
+                  ? "bg-gray-400 cursor-not-allowed"
                   : "bg-primary hover:opacity-90 hover:scale-105"
-            }`}
-          >
-            {isSearching ? "Searching for match..." : "Find Match"}
-          </button>
+              }`}
+            >
+              Find Match
+            </button>
+          )}
         </div>
       </main>
     </div>
