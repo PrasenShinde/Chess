@@ -4,6 +4,7 @@ import { ChessRoom } from "../src/game/ChessRoom.js";
 import { hashToken } from "../src/utils/tokens.js";
 import { csrfProtection } from "../src/middleware/csrf.middleware.js";
 import { checkSocketRateLimit } from "../src/middleware/socketRateLimit.middleware.js";
+import { assignPlayerColors } from "../src/services/Matchmaker.js";
 
 test("hashToken stores deterministic SHA256 hashes", () => {
   const first = hashToken("sample-refresh-token");
@@ -31,6 +32,19 @@ test("ChessRoom reaches game over on checkmate sequence", () => {
   assert.ok(room.makeMove("d8", "h4"));
   assert.equal(room.isGameOver(), true);
   assert.equal(room.getGameOverReason(), "checkmate");
+});
+
+test("assignPlayerColors gives one white and one black player", () => {
+  const player1 = { user: { id: "p1", username: "Alice" }, socket: {} };
+  const player2 = { user: { id: "p2", username: "Bob" }, socket: {} };
+
+  const whiteFirst = assignPlayerColors(player1, player2, () => 0.1);
+  assert.equal(whiteFirst.white.user.id, "p1");
+  assert.equal(whiteFirst.black.user.id, "p2");
+
+  const blackFirst = assignPlayerColors(player1, player2, () => 0.9);
+  assert.equal(blackFirst.white.user.id, "p2");
+  assert.equal(blackFirst.black.user.id, "p1");
 });
 
 test("csrfProtection rejects missing or mismatched tokens", () => {
@@ -78,4 +92,10 @@ test("checkSocketRateLimit blocks excessive socket events", () => {
   }
 
   assert.equal(checkSocketRateLimit(userId, event, { max: 5, windowMs: 60_000 }), false);
+});
+
+test("checkSocketRateLimit isolates users and events", () => {
+  assert.equal(checkSocketRateLimit("user-a", "find-match", { max: 2, windowMs: 60_000 }), true);
+  assert.equal(checkSocketRateLimit("user-b", "find-match", { max: 2, windowMs: 60_000 }), true);
+  assert.equal(checkSocketRateLimit("user-a", "move", { max: 2, windowMs: 60_000 }), true);
 });

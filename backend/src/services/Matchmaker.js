@@ -4,6 +4,13 @@ import roomManager from "./RoomManager.js";
 import socketRegistry from "./SocketRegistry.js";
 import gameManager from "../game/GameManager.js";
 
+export const assignPlayerColors = (player1, player2, random = Math.random) => {
+  const isPlayer1White = random() < 0.5;
+  return isPlayer1White
+    ? { white: player1, black: player2 }
+    : { white: player2, black: player1 };
+};
+
 class Matchmaker {
   constructor(io) {
     this.io = io;
@@ -28,9 +35,10 @@ class Matchmaker {
         const [player1, player2] = players;
         const roomId = `room_${crypto.randomUUID().slice(0, 8)}`;
 
-        const isPlayer1White = Math.random() < 0.5;
-        const whitePlayer = isPlayer1White ? player1 : player2;
-        const blackPlayer = isPlayer1White ? player2 : player1;
+        const { white: whitePlayer, black: blackPlayer } = assignPlayerColors(
+          player1,
+          player2,
+        );
 
         await gameManager.createGame(roomId, whitePlayer.user, blackPlayer.user);
         roomManager.createRoom(roomId, whitePlayer.user, blackPlayer.user);

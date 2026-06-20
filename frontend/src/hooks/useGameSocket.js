@@ -1,8 +1,10 @@
 import { useEffect, useState, useCallback } from "react";
 import { socket } from "../socket/socket.js";
 
-export const useGameSocket = (roomId) => {
-  const [boardFen, setBoardFen] = useState("start");
+const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
+export const useGameSocket = (roomId, initialPlayerColor = null) => {
+  const [boardFen, setBoardFen] = useState(START_FEN);
   const [moves, setMoves] = useState([]);
   const [turn, setTurn] = useState("w");
   const [status, setStatus] = useState("playing");
@@ -10,7 +12,7 @@ export const useGameSocket = (roomId) => {
   const [gameOverReason, setGameOverReason] = useState(null);
   const [whitePlayer, setWhitePlayer] = useState(null);
   const [blackPlayer, setBlackPlayer] = useState(null);
-  const [playerColor, setPlayerColor] = useState(null);
+  const [playerColor, setPlayerColor] = useState(initialPlayerColor);
   const [winnerUsername, setWinnerUsername] = useState(null);
   const [drawOfferBy, setDrawOfferBy] = useState(null);
   const [error, setError] = useState(null);
@@ -22,10 +24,10 @@ export const useGameSocket = (roomId) => {
       socket.connect();
     }
 
-    socket.emit("resume-game", { roomId });
+    socket.emit("resume-game", { roomId, expectedColor: initialPlayerColor });
 
     const handleResumeGame = (data) => {
-      setBoardFen(data.fen || "start");
+      setBoardFen(data.fen || START_FEN);
       setMoves(data.moves || []);
       setTurn(data.turn || "w");
       setStatus(data.status || "playing");
@@ -71,11 +73,16 @@ export const useGameSocket = (roomId) => {
       setDrawOfferBy(data.offeredBy);
     };
 
+    const handleDrawDeclined = () => {
+      setDrawOfferBy(null);
+    };
+
     socket.on("resume-game", handleResumeGame);
     socket.on("move-made", handleMoveMade);
     socket.on("move-error", handleMoveError);
     socket.on("game-over", handleGameOver);
     socket.on("draw-offered", handleDrawOffered);
+    socket.on("draw-declined", handleDrawDeclined);
 
     return () => {
       socket.off("resume-game", handleResumeGame);
@@ -83,6 +90,7 @@ export const useGameSocket = (roomId) => {
       socket.off("move-error", handleMoveError);
       socket.off("game-over", handleGameOver);
       socket.off("draw-offered", handleDrawOffered);
+      socket.off("draw-declined", handleDrawDeclined);
     };
   }, [roomId]);
 
@@ -102,6 +110,10 @@ export const useGameSocket = (roomId) => {
     socket.emit("accept-draw", { roomId });
   }, [roomId]);
 
+  const declineDraw = useCallback(() => {
+    socket.emit("decline-draw", { roomId });
+  }, [roomId]);
+
   const claimTimeout = useCallback(() => {
     socket.emit("claim-timeout", { roomId });
   }, [roomId]);
@@ -119,10 +131,12 @@ export const useGameSocket = (roomId) => {
     playerColor,
     drawOfferBy,
     error,
+    isLoading: !playerColor && !error,
     makeMove,
     resign,
     offerDraw,
     acceptDraw,
+    declineDraw,
     claimTimeout,
   };
 };

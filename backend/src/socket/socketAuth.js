@@ -26,7 +26,7 @@ export const socketAuthMiddleware = async (socket, next) => {
     // Fetch user from DB to ensure they still exist and get details
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
-      select: { id: true, email: true, username: true }
+      select: { id: true, email: true, username: true, rating: true }
     });
 
     if (!user) {

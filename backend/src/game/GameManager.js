@@ -146,6 +146,10 @@ class GameManager {
   }
 
   assertPlayerTurn(room, playerId) {
+    if (room.whitePlayerId === room.blackPlayerId && playerId === room.whitePlayerId) {
+      return; // Playing against themselves
+    }
+
     const turn = room.getCurrentTurn();
     const isWhitePlayer = playerId === room.whitePlayerId;
 
@@ -333,6 +337,27 @@ class GameManager {
       await RedisGameStore.updateGame(room.roomId, this.buildGamePayload(room));
 
       return { room, drawOfferBy: playerId };
+    });
+  }
+
+  async declineDraw(roomId, playerId) {
+    return withGameLock(roomId, async () => {
+      const room = await this.getGame(roomId);
+      if (!room) {
+        throw new Error("Game not found");
+      }
+
+      this.assertPlayerInRoom(room, playerId);
+      this.assertGameActive(room);
+
+      if (!room.drawOfferBy || room.drawOfferBy === playerId) {
+        throw new Error("No draw offer to decline");
+      }
+
+      room.drawOfferBy = null;
+      await RedisGameStore.updateGame(room.roomId, this.buildGamePayload(room));
+
+      return { room };
     });
   }
 

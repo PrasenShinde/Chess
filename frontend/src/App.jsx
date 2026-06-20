@@ -9,6 +9,7 @@ import PlayGame from './pages/PlayGame.jsx'
 import LearnPage from './pages/LearnPage.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
 import ProtectedRoute from './components/auth/ProtectedRoute.jsx'
+import GuestRoute from './components/auth/GuestRoute.jsx'
 
 function NotFound() {
   return (
@@ -29,8 +30,8 @@ function App() {
     <AuthProvider>
       <Routes>
         <Route path="/" element={<Landing />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignupPage />} />
+        <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />
+        <Route path="/signup" element={<GuestRoute><SignupPage /></GuestRoute>} />
         <Route path="/learn" element={<LearnPage />} />
         <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
         <Route path="/dashboard" element={<Navigate to="/home" replace />} />

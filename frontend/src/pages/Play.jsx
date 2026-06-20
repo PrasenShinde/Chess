@@ -16,16 +16,21 @@ export default function Play() {
       return undefined;
     }
 
-    socket.connect();
+    if (!socket.connected) {
+      socket.connect();
+    }
 
     const handleOnlineUsers = (usersArray) => {
       setOnlineCount(usersArray.length);
     };
 
     const handleMatchFound = (match) => {
-      const roomId = typeof match === "string" ? match : match.roomId;
+      if (!match?.roomId) {
+        return;
+      }
+
       setIsSearching(false);
-      navigate(`/playing/${roomId}`, {
+      navigate(`/playing/${match.roomId}`, {
         state: {
           color: match.color,
           players: match.players,
@@ -45,7 +50,6 @@ export default function Play() {
       socket.off("online-users", handleOnlineUsers);
       socket.off("match-found", handleMatchFound);
       socket.off("match-cancelled", handleMatchCancelled);
-      socket.disconnect();
     };
   }, [user, socket, navigate]);
 

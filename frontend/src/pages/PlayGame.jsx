@@ -5,31 +5,57 @@ import SiteHeader from "../components/layout/SiteHeader.jsx";
 import ChessBoard from "../components/ChessBoard.jsx";
 import { UserCircle2, ArrowLeft, Trophy, AlertCircle } from "lucide-react";
 
-const getWinnerLabel = (winner, winnerUsername, whitePlayer, blackPlayer) => {
+const formatReason = (reason) => {
+  if (!reason) return null;
+  return reason.replace(/_/g, " ");
+};
+
+const getWinnerLabel = (
+  winner,
+  winnerUsername,
+  whitePlayer,
+  blackPlayer,
+  userId,
+) => {
   if (!winner) {
     return "Draw";
   }
 
+  const winnerId = winner === "white" ? whitePlayer?.id : blackPlayer?.id;
+
+  if (winnerId && userId) {
+    if (winnerId === userId) {
+      return "You win!";
+    }
+    return "You lost";
+  }
+
   if (winnerUsername) {
-    return `${winnerUsername} Wins!`;
+    return `${winnerUsername} wins`;
   }
 
   if (winner === "white") {
-    return `${whitePlayer?.username || "White"} Wins!`;
+    return `${whitePlayer?.username || "White"} wins`;
   }
 
   if (winner === "black") {
-    return `${blackPlayer?.username || "Black"} Wins!`;
+    return `${blackPlayer?.username || "Black"} wins`;
   }
 
-  return "Game Over";
+  return "Game over";
 };
 
 export default function PlayGame() {
   const { roomId } = useParams();
+  return <PlayGameView key={roomId} roomId={roomId} />;
+}
+
+function PlayGameView({ roomId }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+
+  const initialColor = location.state?.color || null;
 
   const {
     boardFen,
@@ -41,20 +67,18 @@ export default function PlayGame() {
     gameOverReason,
     whitePlayer,
     blackPlayer,
-    playerColor: serverPlayerColor,
+    playerColor,
     drawOfferBy,
     error,
+    isLoading,
     makeMove,
     resign,
     offerDraw,
     acceptDraw,
+    declineDraw,
     claimTimeout,
-  } = useGameSocket(roomId);
+  } = useGameSocket(roomId, initialColor);
 
-  const playerColor =
-    serverPlayerColor ||
-    location.state?.color ||
-    (user?.id === blackPlayer?.id ? "black" : "white");
   const initialPlayers = location.state?.players;
   const resolvedWhitePlayer = whitePlayer || initialPlayers?.white;
   const resolvedBlackPlayer = blackPlayer || initialPlayers?.black;
@@ -62,6 +86,7 @@ export default function PlayGame() {
   const me = playerColor === "white" ? resolvedWhitePlayer : resolvedBlackPlayer;
   const turnColor = turn === "w" ? "white" : "black";
   const opponentOfferedDraw = drawOfferBy && drawOfferBy !== user?.id;
+  const reasonLabel = formatReason(gameOverReason);
 
   return (
     <div className="min-h-svh bg-cream text-ink flex flex-col font-sans">
@@ -94,19 +119,25 @@ export default function PlayGame() {
                     {opponent?.username || "Opponent"}
                   </h3>
                   <p className="text-xs text-ink/60 font-medium uppercase tracking-wider">
-                    {playerColor === "white" ? "Black" : "White"}
+                    {playerColor === "white" ? "Black" : playerColor === "black" ? "White" : "—"}
                   </p>
                 </div>
               </div>
             </div>
 
-            <ChessBoard
-              fen={boardFen}
-              playerColor={playerColor}
-              onMove={makeMove}
-              status={status}
-              turn={turn}
-            />
+            {isLoading ? (
+              <div className="w-full max-w-[600px] aspect-square rounded-lg border-4 border-accent/20 bg-accent/10 flex items-center justify-center">
+                <p className="text-ink/60 font-medium">Loading game...</p>
+              </div>
+            ) : (
+              <ChessBoard
+                fen={boardFen}
+                playerColor={playerColor}
+                onMove={makeMove}
+                status={status}
+                turn={turn}
+              />
+            )}
 
             <div className="w-full max-w-[600px] flex items-center justify-between bg-white/50 backdrop-blur-md border border-accent/30 rounded-xl p-3 shadow-sm">
               <div className="flex items-center gap-3">
@@ -118,7 +149,7 @@ export default function PlayGame() {
                     {me?.username || user?.username || "You"}
                   </h3>
                   <p className="text-xs text-ink/60 font-medium uppercase tracking-wider">
-                    {playerColor}
+                    {playerColor || "—"}
                   </p>
                 </div>
               </div>
@@ -133,9 +164,11 @@ export default function PlayGame() {
                 <div className="space-y-4">
                   <div className="text-center py-6 bg-accent/10 rounded-xl border border-accent/20">
                     <p className="text-lg font-medium">
-                      {turnColor === playerColor
-                        ? "Your Turn"
-                        : `${turnColor === "white" ? "White" : "Black"}'s Turn`}
+                      {!playerColor
+                        ? "Syncing board..."
+                        : turnColor === playerColor
+                          ? "Your turn"
+                          : `${turnColor === "white" ? "White" : "Black"}'s turn`}
                     </p>
                     {error && (
                       <p className="text-red-500 text-sm mt-2 flex items-center justify-center gap-1">
@@ -147,30 +180,41 @@ export default function PlayGame() {
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       onClick={offerDraw}
-                      className="rounded-lg border border-accent px-3 py-2 text-sm font-medium hover:bg-accent/10"
+                      disabled={!playerColor}
+                      className="rounded-lg border border-accent px-3 py-2 text-sm font-medium hover:bg-accent/10 disabled:opacity-50"
                     >
                       Offer Draw
                     </button>
                     <button
                       onClick={claimTimeout}
-                      className="rounded-lg border border-accent px-3 py-2 text-sm font-medium hover:bg-accent/10"
+                      disabled={!playerColor}
+                      className="rounded-lg border border-accent px-3 py-2 text-sm font-medium hover:bg-accent/10 disabled:opacity-50"
                     >
                       Claim Timeout
                     </button>
                   </div>
 
                   {opponentOfferedDraw && (
-                    <button
-                      onClick={acceptDraw}
-                      className="w-full rounded-lg bg-primary px-3 py-2 text-sm font-medium text-cream"
-                    >
-                      Accept Draw Offer
-                    </button>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        onClick={acceptDraw}
+                        className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-cream"
+                      >
+                        Accept Draw
+                      </button>
+                      <button
+                        onClick={declineDraw}
+                        className="rounded-lg border border-accent px-3 py-2 text-sm font-medium hover:bg-accent/10"
+                      >
+                        Decline
+                      </button>
+                    </div>
                   )}
 
                   <button
                     onClick={resign}
-                    className="w-full rounded-lg border border-red-300 text-red-600 px-3 py-2 text-sm font-medium hover:bg-red-50"
+                    disabled={!playerColor}
+                    className="w-full rounded-lg border border-red-300 text-red-600 px-3 py-2 text-sm font-medium hover:bg-red-50 disabled:opacity-50"
                   >
                     Resign
                   </button>
@@ -185,11 +229,14 @@ export default function PlayGame() {
                       winnerUsername,
                       resolvedWhitePlayer,
                       resolvedBlackPlayer,
+                      user?.id,
                     )}
                   </p>
-                  <p className="text-sm text-amber-700/70 capitalize mt-1">
-                    ({gameOverReason})
-                  </p>
+                  {reasonLabel ? (
+                    <p className="text-sm text-amber-700/70 capitalize mt-1">
+                      {reasonLabel}
+                    </p>
+                  ) : null}
                 </div>
               )}
             </div>

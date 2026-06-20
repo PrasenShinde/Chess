@@ -2,10 +2,23 @@ import { API_URL } from "../config";
 
 export { API_URL };
 
-const AUTH_ENDPOINTS = ["/auth/login", "/auth/register", "/auth/logout", "/auth/refresh", "/auth/csrf"];
+const AUTH_ENDPOINTS = [
+  "/auth/login",
+  "/auth/register",
+  "/auth/logout",
+  "/auth/refresh",
+  "/auth/csrf",
+];
 
 const shouldRefreshAfterUnauthorized = (endpoint) => {
   return !AUTH_ENDPOINTS.includes(endpoint);
+};
+
+let refreshPromise = null;
+let sessionExpiredHandler = null;
+
+export const onSessionExpired = (handler) => {
+  sessionExpiredHandler = handler;
 };
 
 export const getCsrfToken = () => {
@@ -30,6 +43,31 @@ export const ensureCsrfToken = async () => {
   return data.csrfToken || getCsrfToken();
 };
 
+const refreshAccessToken = async () => {
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      const response = await fetch(`${API_URL}/auth/refresh`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": await ensureCsrfToken(),
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Session expired");
+      }
+
+      return response.json();
+    })().finally(() => {
+      refreshPromise = null;
+    });
+  }
+
+  return refreshPromise;
+};
+
 export const fetchApi = async (endpoint, options = {}, hasRetried = false) => {
   const url = `${API_URL}${endpoint}`;
   const method = (options.method || "GET").toUpperCase();
@@ -50,10 +88,11 @@ export const fetchApi = async (endpoint, options = {}, hasRetried = false) => {
 
   if (response.status === 401 && !hasRetried && shouldRefreshAfterUnauthorized(endpoint)) {
     try {
-      await fetchApi("/auth/refresh", { method: "POST" }, true);
+      await refreshAccessToken();
       return fetchApi(endpoint, options, true);
     } catch {
-      // Fall through and return the original unauthorized response below.
+      sessionExpiredHandler?.();
+      throw new Error("Session expired. Please log in again.");
     }
   }
 

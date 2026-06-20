@@ -32,7 +32,7 @@ export const registerGameHandlers = (io, socket) => {
   const limitMove = socketRateLimit("move", { max: 120 });
   const limitControl = socketRateLimit("game-control", { max: 20 });
 
-  socket.on("move", limitMove(socket, async ({ roomId, from, to, promotion }) => {
+  socket.on("move", async ({ roomId, from, to, promotion }) => {
     try {
       if (!roomId || !isSquare(from) || !isSquare(to)) {
         socket.emit("move-error", { message: "Invalid move payload" });
@@ -65,7 +65,7 @@ export const registerGameHandlers = (io, socket) => {
       console.error("[Move Error]", error.message);
       socket.emit("move-error", { message: error.message });
     }
-  }));
+  });
 
   socket.on("resign", limitControl(socket, async ({ roomId }) => {
     try {
@@ -109,6 +109,20 @@ export const registerGameHandlers = (io, socket) => {
     }
   }));
 
+  socket.on("decline-draw", limitControl(socket, async ({ roomId }) => {
+    try {
+      if (!roomId) {
+        socket.emit("move-error", { message: "Room ID required" });
+        return;
+      }
+
+      await gameManager.declineDraw(roomId, user.id);
+      io.to(roomId).emit("draw-declined", { roomId, declinedBy: user.id });
+    } catch (error) {
+      socket.emit("move-error", { message: error.message });
+    }
+  }));
+
   socket.on("claim-timeout", limitControl(socket, async ({ roomId }) => {
     try {
       if (!roomId) {
@@ -123,7 +137,7 @@ export const registerGameHandlers = (io, socket) => {
     }
   }));
 
-  socket.on("resume-game", async ({ roomId }) => {
+  socket.on("resume-game", async ({ roomId, expectedColor }) => {
     try {
       const room = await gameManager.getGame(roomId);
       if (!room) {
@@ -138,7 +152,13 @@ export const registerGameHandlers = (io, socket) => {
 
       socket.join(roomId);
 
-      const playerColor = user.id === room.whitePlayerId ? "white" : "black";
+      let playerColor = user.id === room.whitePlayerId ? "white" : "black";
+      
+      // If the user is playing against themselves, respect the tab's expected color
+      if (room.whitePlayerId === room.blackPlayerId && expectedColor) {
+        playerColor = expectedColor;
+      }
+
       const winnerColor = gameManager.getWinnerColor(room);
       const players = buildPlayersPayload(room);
 

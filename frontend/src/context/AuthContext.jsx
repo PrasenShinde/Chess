@@ -1,11 +1,17 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { authService, ensureCsrfToken } from "../services/api.js";
+import { authService, ensureCsrfToken, onSessionExpired } from "../services/api.js";
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    onSessionExpired(() => {
+      setUser(null);
+    });
+  }, []);
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -36,8 +42,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
-    await authService.logout();
-    setUser(null);
+    try {
+      await authService.logout();
+    } finally {
+      setUser(null);
+    }
   };
 
   return (
