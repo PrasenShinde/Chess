@@ -3,6 +3,7 @@ import app from "./app.js";
 import { env } from "./config/env.js";
 import { initializeSocket } from "./socket/index.js";
 import { initRedis } from "./redis/redisClient.js";
+
 const PORT = env.PORT;
 
 const httpServer = createServer(app);

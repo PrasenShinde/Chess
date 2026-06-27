@@ -114,7 +114,7 @@ cd backend
 npx prisma migrate dev
 ```
 
-This creates the `users`, `refresh_tokens`, and `games` tables. Default user rating is `1200`.
+This creates the `users`, `refresh_tokens`, and `games` tables. Default user rating is `200`.
 
 ## Start Redis and PostgreSQL
 
