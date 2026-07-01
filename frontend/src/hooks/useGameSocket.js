@@ -92,7 +92,7 @@ export const useGameSocket = (roomId, initialPlayerColor = null) => {
       socket.off("draw-offered", handleDrawOffered);
       socket.off("draw-declined", handleDrawDeclined);
     };
-  }, [roomId]);
+  }, [roomId, initialPlayerColor]);
 
   const makeMove = useCallback((from, to, promotion = "q") => {
     socket.emit("move", { roomId, from, to, promotion });
