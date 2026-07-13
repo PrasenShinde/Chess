@@ -34,13 +34,14 @@ class Matchmaker {
 
         const [player1, player2] = players;
         const roomId = `room_${crypto.randomUUID().slice(0, 8)}`;
+        const timeControl = player1.timeControl || "rapid";
 
         const { white: whitePlayer, black: blackPlayer } = assignPlayerColors(
           player1,
           player2,
         );
 
-        await gameManager.createGame(roomId, whitePlayer.user, blackPlayer.user);
+        await gameManager.createGame(roomId, whitePlayer.user, blackPlayer.user, timeControl);
         roomManager.createRoom(roomId, whitePlayer.user, blackPlayer.user);
 
         whitePlayer.socket.join(roomId);
@@ -57,20 +58,20 @@ class Matchmaker {
           },
         };
 
-        whitePlayer.socket.emit("match-found", {
+        const matchPayload = (color) => ({
           roomId,
-          color: "white",
+          color,
           players: playersPayload,
+          timeControl,
         });
 
-        blackPlayer.socket.emit("match-found", {
-          roomId,
-          color: "black",
-          players: playersPayload,
-        });
+        whitePlayer.socket.emit("match-found", matchPayload("white"));
+        blackPlayer.socket.emit("match-found", matchPayload("black"));
+
+        gameManager.startTimer(roomId);
 
         console.log(
-          `[Matchmaker] ${whitePlayer.user.username} (white) vs ${blackPlayer.user.username} (black) in ${roomId}`,
+          `[Matchmaker] ${whitePlayer.user.username} (white) vs ${blackPlayer.user.username} (black) in ${roomId} (${timeControl})`,
         );
       }
     } finally {

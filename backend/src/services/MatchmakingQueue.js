@@ -19,12 +19,13 @@ class MatchmakingQueue {
     await client.rPush(QUEUE_KEY, user.id);
     await client.hSet(this.userKey(user.id), {
       username: user.username || "Player",
-      rating: String(user.rating ?? 1200),
+      rating: String(user.rating ?? 200),
+      timeControl: user.timeControl || "rapid",
       enqueuedAt: String(Date.now()),
     });
     await client.expire(this.userKey(user.id), 3600);
 
-    console.log(`[Queue] Added user ${user.username}`);
+    console.log(`[Queue] Added user ${user.username} (${user.timeControl || "rapid"})`);
   }
 
   async remove(userId) {
@@ -64,13 +65,26 @@ class MatchmakingQueue {
         continue;
       }
 
+      // Only match with same time control
+      if (matched.length === 1 && matched[0].timeControl !== meta.timeControl) {
+        await this.add({
+          id: userId,
+          username: meta.username,
+          rating: Number(meta.rating) || 200,
+          timeControl: meta.timeControl || "rapid",
+        });
+        continue;
+      }
+
       matched.push({
         user: {
           id: userId,
           username: meta.username,
-          rating: Number(meta.rating) || 1200,
+          rating: Number(meta.rating) || 200,
+          timeControl: meta.timeControl || "rapid",
         },
         socket,
+        timeControl: meta.timeControl || "rapid",
       });
     }
 

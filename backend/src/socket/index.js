@@ -6,6 +6,7 @@ import { handleDisconnect } from "./handlers/disconnect.js";
 import { registerGameHandlers } from "./handlers/gameHandlers.js";
 import { registerRoomHandlers } from "./handlers/roomHandlers.js";
 import { initMatchmaker } from "../services/Matchmaker.js";
+import gameManager from "../game/GameManager.js";
 
 export const initializeSocket = (httpServer) => {
   const io = new Server(httpServer, {
@@ -18,6 +19,7 @@ export const initializeSocket = (httpServer) => {
 
   // Initialize Matchmaker logic
   initMatchmaker(io);
+  gameManager.setIo(io);
 
   // Apply authentication middleware
   io.use(socketAuthMiddleware);

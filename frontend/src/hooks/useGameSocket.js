@@ -16,6 +16,10 @@ export const useGameSocket = (roomId, initialPlayerColor = null) => {
   const [winnerUsername, setWinnerUsername] = useState(null);
   const [drawOfferBy, setDrawOfferBy] = useState(null);
   const [error, setError] = useState(null);
+  const [whiteTimeMs, setWhiteTimeMs] = useState(null);
+  const [blackTimeMs, setBlackTimeMs] = useState(null);
+  const [timeControl, setTimeControl] = useState(null);
+  const [rematchData, setRematchData] = useState(null);
 
   useEffect(() => {
     if (!roomId) return;
@@ -39,6 +43,9 @@ export const useGameSocket = (roomId, initialPlayerColor = null) => {
         data.players?.black || { id: data.blackPlayerId, username: data.blackPlayerUsername },
       );
       setDrawOfferBy(data.drawOfferBy || null);
+      setTimeControl(data.timeControl || null);
+      setWhiteTimeMs(data.whiteTimeMs ?? null);
+      setBlackTimeMs(data.blackTimeMs ?? null);
 
       if (data.status === "game_over") {
         setWinner(data.winner);
@@ -55,6 +62,8 @@ export const useGameSocket = (roomId, initialPlayerColor = null) => {
       }
       setDrawOfferBy(null);
       setError(null);
+      if (data.whiteTimeMs != null) setWhiteTimeMs(data.whiteTimeMs);
+      if (data.blackTimeMs != null) setBlackTimeMs(data.blackTimeMs);
     };
 
     const handleMoveError = (data) => {
@@ -77,12 +86,23 @@ export const useGameSocket = (roomId, initialPlayerColor = null) => {
       setDrawOfferBy(null);
     };
 
+    const handleTimerUpdate = (data) => {
+      if (data.whiteTimeMs != null) setWhiteTimeMs(data.whiteTimeMs);
+      if (data.blackTimeMs != null) setBlackTimeMs(data.blackTimeMs);
+    };
+
+    const handleRematchStarted = (data) => {
+      setRematchData(data);
+    };
+
     socket.on("resume-game", handleResumeGame);
     socket.on("move-made", handleMoveMade);
     socket.on("move-error", handleMoveError);
     socket.on("game-over", handleGameOver);
     socket.on("draw-offered", handleDrawOffered);
     socket.on("draw-declined", handleDrawDeclined);
+    socket.on("timer-update", handleTimerUpdate);
+    socket.on("rematch-started", handleRematchStarted);
 
     return () => {
       socket.off("resume-game", handleResumeGame);
@@ -91,6 +111,8 @@ export const useGameSocket = (roomId, initialPlayerColor = null) => {
       socket.off("game-over", handleGameOver);
       socket.off("draw-offered", handleDrawOffered);
       socket.off("draw-declined", handleDrawDeclined);
+      socket.off("timer-update", handleTimerUpdate);
+      socket.off("rematch-started", handleRematchStarted);
     };
   }, [roomId, initialPlayerColor]);
 
@@ -114,8 +136,8 @@ export const useGameSocket = (roomId, initialPlayerColor = null) => {
     socket.emit("decline-draw", { roomId });
   }, [roomId]);
 
-  const claimTimeout = useCallback(() => {
-    socket.emit("claim-timeout", { roomId });
+  const rematch = useCallback(() => {
+    socket.emit("rematch", { roomId });
   }, [roomId]);
 
   return {
@@ -131,12 +153,17 @@ export const useGameSocket = (roomId, initialPlayerColor = null) => {
     playerColor,
     drawOfferBy,
     error,
+    whiteTimeMs,
+    blackTimeMs,
+    timeControl,
+    rematchData,
     isLoading: !playerColor && !error,
     makeMove,
     resign,
     offerDraw,
     acceptDraw,
     declineDraw,
-    claimTimeout,
+    rematch,
+    setRematchData,
   };
 };

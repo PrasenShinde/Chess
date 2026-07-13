@@ -51,6 +51,8 @@ export const registerGameHandlers = (io, socket) => {
           san: moveResult.san,
         },
         turn: room.getCurrentTurn(),
+        whiteTimeMs: Math.round(room.whiteTimeMs),
+        blackTimeMs: Math.round(room.blackTimeMs),
       });
 
       if (isGameOver) {
@@ -123,15 +125,33 @@ export const registerGameHandlers = (io, socket) => {
     }
   }));
 
-  socket.on("claim-timeout", limitControl(socket, async ({ roomId }) => {
+  socket.on("rematch", limitControl(socket, async ({ roomId }) => {
     try {
       if (!roomId) {
         socket.emit("move-error", { message: "Room ID required" });
         return;
       }
 
-      const result = await gameManager.claimTimeout(roomId, user.id);
-      await emitGameOver(io, roomId, result.room, result);
+      const result = await gameManager.rematchGame(roomId, user.id);
+      const newRoom = result.newRoom;
+
+      const initiatorNewColor = result.players.black.id === user.id ? "black" : "white";
+      const opponentNewColor = initiatorNewColor === "white" ? "black" : "white";
+
+      socket.join(result.newRoomId);
+      socket.to(roomId).emit("rematch-started", {
+        newRoomId: result.newRoomId,
+        color: opponentNewColor,
+        players: result.players,
+      });
+
+      socket.emit("rematch-started", {
+        newRoomId: result.newRoomId,
+        color: initiatorNewColor,
+        players: result.players,
+      });
+
+      gameManager.startTimer(result.newRoomId);
     } catch (error) {
       socket.emit("move-error", { message: error.message });
     }
@@ -153,14 +173,17 @@ export const registerGameHandlers = (io, socket) => {
       socket.join(roomId);
 
       let playerColor = user.id === room.whitePlayerId ? "white" : "black";
-      
-      // If the user is playing against themselves, respect the tab's expected color
+
       if (room.whitePlayerId === room.blackPlayerId && expectedColor) {
         playerColor = expectedColor;
       }
 
       const winnerColor = gameManager.getWinnerColor(room);
       const players = buildPlayersPayload(room);
+
+      if (room.status === "playing") {
+        gameManager.startTimer(roomId);
+      }
 
       socket.emit("resume-game", {
         roomId: room.roomId,
@@ -176,6 +199,10 @@ export const registerGameHandlers = (io, socket) => {
         reason:
           room.endReason ||
           (room.status === "game_over" ? room.getGameOverReason() : null),
+        timeControl: room.timeControl,
+        initialTimeMs: room.initialTimeMs,
+        whiteTimeMs: Math.round(room.whiteTimeMs),
+        blackTimeMs: Math.round(room.blackTimeMs),
       });
     } catch (error) {
       console.error("[Resume Game Error]", error);

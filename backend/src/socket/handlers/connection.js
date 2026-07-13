@@ -15,8 +15,8 @@ export const handleConnection = (io, socket) => {
 
   const limitMatchmaking = socketRateLimit("matchmaking", { max: 30 });
 
-  socket.on("find-match", limitMatchmaking(socket, async () => {
-    await queue.add(user);
+  socket.on("find-match", limitMatchmaking(socket, async ({ timeControl } = {}) => {
+    await queue.add({ ...user, timeControl: timeControl || "rapid" });
     tryMatchmaking();
   }));
 

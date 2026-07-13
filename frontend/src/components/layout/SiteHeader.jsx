@@ -3,9 +3,12 @@ import { useAuth } from '../../context/AuthContext'
 
 export default function SiteHeader() {
   const location = useLocation();
-  const { user } = useAuth() || {}; // Use empty object fallback in case it's used outside provider
+  const { user } = useAuth() || {};
   const isHome = location.pathname === '/';
   const isAuthPage = location.pathname === '/login' || location.pathname === '/signup';
+  const isPlaying = location.pathname.startsWith('/playing');
+
+  if (isPlaying) return null;
 
   const linkClass = () =>
     [

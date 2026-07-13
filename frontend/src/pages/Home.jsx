@@ -1,14 +1,26 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useSocket } from "../hooks/useSocket";
 import SiteHeader from "../components/layout/SiteHeader.jsx";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { gameService } from "../services/api.js";
+
+const TIME_CONTROLS = [
+  { id: "bullet", label: "Bullet", time: "1 min" },
+  { id: "blitz", label: "Blitz", time: "3 min" },
+  { id: "rapid", label: "Rapid", time: "10 min" },
+];
 
 export default function Home() {
   const { user } = useAuth();
-  const [stats, setStats] = useState({ rating: user?.rating ?? 1200, wins: 0, draws: 0, losses: 0 });
+  const { socket, isConnected } = useSocket();
+  const navigate = useNavigate();
+  const [stats, setStats] = useState({ rating: user?.rating ?? 200, wins: 0, draws: 0, losses: 0 });
   const [recentGames, setRecentGames] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [timeControl, setTimeControl] = useState("rapid");
+  const [isSearching, setIsSearching] = useState(false);
+  const [onlineCount, setOnlineCount] = useState(0);
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -29,6 +41,53 @@ export default function Home() {
     loadDashboard();
   }, []);
 
+  useEffect(() => {
+    if (!socket.connected) {
+      socket.connect();
+    }
+
+    const handleOnlineUsers = (usersArray) => {
+      setOnlineCount(usersArray.length);
+    };
+
+    const handleMatchFound = (match) => {
+      if (!match?.roomId) return;
+      setIsSearching(false);
+      navigate(`/playing/${match.roomId}`, {
+        state: {
+          color: match.color,
+          players: match.players,
+          timeControl: match.timeControl,
+        },
+      });
+    };
+
+    const handleMatchCancelled = () => {
+      setIsSearching(false);
+    };
+
+    socket.on("online-users", handleOnlineUsers);
+    socket.on("match-found", handleMatchFound);
+    socket.on("match-cancelled", handleMatchCancelled);
+
+    return () => {
+      socket.off("online-users", handleOnlineUsers);
+      socket.off("match-found", handleMatchFound);
+      socket.off("match-cancelled", handleMatchCancelled);
+    };
+  }, [socket, navigate]);
+
+  const handleStartGame = () => {
+    if (!isConnected) return;
+    socket.emit("find-match", { timeControl });
+    setIsSearching(true);
+  };
+
+  const handleCancelSearch = () => {
+    socket.emit("cancel-match");
+    setIsSearching(false);
+  };
+
   return (
     <div className="min-h-svh bg-cream text-ink flex flex-col">
       <SiteHeader />
@@ -42,15 +101,60 @@ export default function Home() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="col-span-1 md:col-span-2 rounded-2xl border border-accent bg-white p-8 shadow-sm flex flex-col items-center justify-center min-h-[300px]">
-            <h2 className="text-2xl font-semibold mb-6">Play Chess</h2>
-            <Link
-              to="/play"
-              className="rounded-xl bg-primary px-12 py-4 text-xl font-bold text-cream transition hover:opacity-90 hover:scale-105 transform inline-block"
-            >
-              Start Game
-            </Link>
-            <div className="mt-8 flex gap-4 text-sm text-ink/65">
-              <span>Live matchmaking</span>
+            <h2 className="text-2xl font-semibold mb-4">Play Chess</h2>
+
+            <div className="flex gap-2 mb-6">
+              {TIME_CONTROLS.map((tc) => (
+                <button
+                  key={tc.id}
+                  onClick={() => setTimeControl(tc.id)}
+                  disabled={isSearching}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all ${
+                    timeControl === tc.id
+                      ? "border-primary bg-primary text-cream"
+                      : "border-accent/40 text-ink/70 hover:border-primary/50"
+                  } disabled:opacity-50`}
+                >
+                  <div>{tc.label}</div>
+                  <div className="text-xs opacity-70">{tc.time}</div>
+                </button>
+              ))}
+            </div>
+
+            {isSearching ? (
+              <div className="flex flex-col items-center gap-4">
+                <button
+                  disabled
+                  className="rounded-xl bg-primary/80 px-12 py-4 text-xl font-bold text-cream cursor-wait animate-pulse"
+                >
+                  Searching for match...
+                </button>
+                <button
+                  onClick={handleCancelSearch}
+                  className="text-sm font-medium text-ink/70 hover:text-ink"
+                >
+                  Cancel search
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleStartGame}
+                disabled={!isConnected}
+                className={`rounded-xl px-12 py-4 text-xl font-bold text-cream transition transform inline-block ${
+                  !isConnected
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-primary hover:opacity-90 hover:scale-105"
+                }`}
+              >
+                Start Game
+              </button>
+            )}
+
+            <div className="mt-6 flex gap-4 text-sm text-ink/65">
+              <span className={`flex items-center gap-1.5 ${isConnected ? "text-green-600" : "text-red-500"}`}>
+                <span className={`h-2 w-2 rounded-full ${isConnected ? "bg-green-600" : "bg-red-500"}`} />
+                {isConnected ? `${onlineCount} online` : "Disconnected"}
+              </span>
               <span>•</span>
               <Link to="/learn" className="hover:text-primary transition-colors">
                 Learn basics

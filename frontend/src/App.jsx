@@ -4,7 +4,6 @@ import LoginPage from './pages/LoginPage.jsx'
 import SignupPage from './pages/SignupPage.jsx'
 import Home from './pages/Home.jsx'
 import ProfilePage from './pages/ProfilePage.jsx'
-import Play from './pages/Play.jsx'
 import PlayGame from './pages/PlayGame.jsx'
 import LearnPage from './pages/LearnPage.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
@@ -36,7 +35,6 @@ function App() {
         <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
         <Route path="/dashboard" element={<Navigate to="/home" replace />} />
         <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-        <Route path="/play" element={<ProtectedRoute><Play /></ProtectedRoute>} />
         <Route path="/playing/:roomId" element={<ProtectedRoute><PlayGame /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>

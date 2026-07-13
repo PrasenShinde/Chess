@@ -55,7 +55,7 @@ export default function LearnPage() {
             Create account
           </Link>
           <Link
-            to="/play"
+            to="/home"
             className="rounded-full border border-accent px-6 py-3 text-sm font-medium text-ink transition-colors hover:border-ink/20"
           >
             Play now

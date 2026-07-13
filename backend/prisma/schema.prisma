@@ -75,6 +75,8 @@ model Game {
   moves               Json        @default("[]")
   startedAt           DateTime    @default(now())
   endedAt             DateTime?
+  timeControl         String      @default("rapid")
+  initialTimeMs       Int         @default(600000)
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
 
