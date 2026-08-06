@@ -6,6 +6,7 @@ import ChessBoard from "../components/ChessBoard.jsx";
 import { UserCircle2, Trophy, AlertCircle, LogOut, RotateCcw, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import confetti from "canvas-confetti";
+import VoiceMoveButton from "../components/VoiceMoveButton.jsx";
 
 const PIECE_IMAGES = {
   wp: "/chess-01.png", wn: "/chess-02.png", wb: "/chess-03.png", wr: "/chess-04.png",
@@ -298,13 +299,22 @@ function PlayGameView({ roomId }) {
                 <p className="text-ink/60 font-medium">Loading game...</p>
               </div>
             ) : (
-              <ChessBoard
-                fen={boardFen}
-                playerColor={playerColor}
-                onMove={makeMove}
-                status={status}
-                turn={turn}
-              />
+              <div className="w-full max-w-[600px] flex flex-col items-center gap-3">
+                <ChessBoard
+                  fen={boardFen}
+                  playerColor={playerColor}
+                  onMove={makeMove}
+                  status={status}
+                  turn={turn}
+                />
+                <VoiceMoveButton
+                  boardFen={boardFen}
+                  turn={turn}
+                  playerColor={playerColor}
+                  status={status}
+                  makeMove={makeMove}
+                />
+              </div>
             )}
 
             <div className="w-full max-w-[600px] flex flex-col gap-1.5">
