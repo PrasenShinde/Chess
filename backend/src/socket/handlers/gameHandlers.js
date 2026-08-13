@@ -125,33 +125,120 @@ export const registerGameHandlers = (io, socket) => {
     }
   }));
 
-  socket.on("rematch", limitControl(socket, async ({ roomId }) => {
+  const handleExecuteRematch = async (roomId, acceptingUserId) => {
+    const result = await gameManager.rematchGame(roomId, acceptingUserId);
+    const newRoomId = result.newRoomId;
+    const whiteId = result.players.white.id;
+
+    const sockets = await io.in(roomId).fetchSockets();
+    for (const s of sockets) {
+      s.join(newRoomId);
+      // Determine color by matching userId stored on the socket from auth middleware
+      const socketUserId = s.data?.userId || s.handshake?.auth?.userId;
+      const sUserColor = socketUserId === whiteId ? "white" : "black";
+      s.emit("rematch-started", {
+        newRoomId,
+        color: sUserColor,
+        players: result.players,
+      });
+    }
+
+    // Fallback: also emit directly to the socket that triggered this (the acceptor)
+    // so even if fetchSockets misses them they still get notified
+    const acceptorColor = acceptingUserId === whiteId ? "white" : "black";
+    const initiatorColor = acceptorColor === "white" ? "black" : "white";
+
+    socket.join(newRoomId);
+    socket.emit("rematch-started", {
+      newRoomId,
+      color: acceptorColor,
+      players: result.players,
+    });
+    socket.to(roomId).emit("rematch-started", {
+      newRoomId,
+      color: initiatorColor,
+      players: result.players,
+    });
+
+    gameManager.startTimer(newRoomId);
+  };
+
+  socket.on("offer-rematch", limitControl(socket, async ({ roomId }) => {
     try {
-      if (!roomId) {
-        socket.emit("move-error", { message: "Room ID required" });
+      if (!roomId) return socket.emit("move-error", { message: "Room ID required" });
+      const room = await gameManager.getGame(roomId);
+      if (!room) return socket.emit("move-error", { message: "Game not found" });
+
+      if (room.rematchOfferBy && room.rematchOfferBy !== user.id) {
+        // Opponent already offered rematch, treat this as accept!
+        await handleExecuteRematch(roomId, user.id);
         return;
       }
 
-      const result = await gameManager.rematchGame(roomId, user.id);
-      const newRoom = result.newRoom;
+      room.rematchOfferBy = user.id;
+      const gamePayload = gameManager.buildGamePayload(room);
+      await RedisGameStore.updateGame(roomId, gamePayload);
 
-      const initiatorNewColor = result.players.black.id === user.id ? "black" : "white";
-      const opponentNewColor = initiatorNewColor === "white" ? "black" : "white";
-
-      socket.join(result.newRoomId);
-      socket.to(roomId).emit("rematch-started", {
-        newRoomId: result.newRoomId,
-        color: opponentNewColor,
-        players: result.players,
+      socket.to(roomId).emit("rematch-offered", {
+        roomId,
+        offeredBy: user.id,
+        username: user.username,
       });
+    } catch (error) {
+      socket.emit("move-error", { message: error.message });
+    }
+  }));
 
-      socket.emit("rematch-started", {
-        newRoomId: result.newRoomId,
-        color: initiatorNewColor,
-        players: result.players,
-      });
+  socket.on("accept-rematch", limitControl(socket, async ({ roomId }) => {
+    try {
+      if (!roomId) return socket.emit("move-error", { message: "Room ID required" });
+      const room = await gameManager.getGame(roomId);
+      if (!room) return socket.emit("move-error", { message: "Game not found" });
 
-      gameManager.startTimer(result.newRoomId);
+      if (!room.rematchOfferBy || room.rematchOfferBy === user.id) {
+        return socket.emit("move-error", { message: "No active rematch offer from opponent" });
+      }
+
+      await handleExecuteRematch(roomId, user.id);
+    } catch (error) {
+      socket.emit("move-error", { message: error.message });
+    }
+  }));
+
+  socket.on("decline-rematch", limitControl(socket, async ({ roomId }) => {
+    try {
+      if (!roomId) return socket.emit("move-error", { message: "Room ID required" });
+      const room = await gameManager.getGame(roomId);
+      if (room) {
+        room.rematchOfferBy = null;
+        const gamePayload = gameManager.buildGamePayload(room);
+        await RedisGameStore.updateGame(roomId, gamePayload);
+      }
+      io.to(roomId).emit("rematch-declined", { roomId, declinedBy: user.id });
+    } catch (error) {
+      socket.emit("move-error", { message: error.message });
+    }
+  }));
+
+  socket.on("rematch", limitControl(socket, async ({ roomId }) => {
+    try {
+      if (!roomId) return socket.emit("move-error", { message: "Room ID required" });
+      const room = await gameManager.getGame(roomId);
+      if (!room) return socket.emit("move-error", { message: "Game not found" });
+
+      if (room.rematchOfferBy && room.rematchOfferBy !== user.id) {
+        await handleExecuteRematch(roomId, user.id);
+      } else {
+        room.rematchOfferBy = user.id;
+        const gamePayload = gameManager.buildGamePayload(room);
+        await RedisGameStore.updateGame(roomId, gamePayload);
+
+        socket.to(roomId).emit("rematch-offered", {
+          roomId,
+          offeredBy: user.id,
+          username: user.username,
+        });
+      }
     } catch (error) {
       socket.emit("move-error", { message: error.message });
     }

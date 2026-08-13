@@ -16,10 +16,14 @@ export const useGameSocket = (roomId, initialPlayerColor = null) => {
   const [winnerUsername, setWinnerUsername] = useState(null);
   const [drawOfferBy, setDrawOfferBy] = useState(null);
   const [error, setError] = useState(null);
+
   const [whiteTimeMs, setWhiteTimeMs] = useState(null);
   const [blackTimeMs, setBlackTimeMs] = useState(null);
-  const [timeControl, setTimeControl] = useState(null);
+  const [timeControl, setTimeControl] = useState("rapid");
+
   const [rematchData, setRematchData] = useState(null);
+  const [rematchOfferBy, setRematchOfferBy] = useState(null);
+  const [rematchDeclined, setRematchDeclined] = useState(false);
 
   useEffect(() => {
     if (!roomId) return;
@@ -43,9 +47,11 @@ export const useGameSocket = (roomId, initialPlayerColor = null) => {
         data.players?.black || { id: data.blackPlayerId, username: data.blackPlayerUsername },
       );
       setDrawOfferBy(data.drawOfferBy || null);
-      setTimeControl(data.timeControl || null);
-      setWhiteTimeMs(data.whiteTimeMs ?? null);
-      setBlackTimeMs(data.blackTimeMs ?? null);
+      setRematchOfferBy(data.rematchOfferBy || null);
+
+      if (data.whiteTimeMs != null) setWhiteTimeMs(data.whiteTimeMs);
+      if (data.blackTimeMs != null) setBlackTimeMs(data.blackTimeMs);
+      if (data.timeControl) setTimeControl(data.timeControl);
 
       if (data.status === "game_over") {
         setWinner(data.winner);
@@ -76,6 +82,8 @@ export const useGameSocket = (roomId, initialPlayerColor = null) => {
       setWinnerUsername(data.winnerUsername || null);
       setGameOverReason(data.reason);
       setDrawOfferBy(null);
+      if (data.whiteTimeMs != null) setWhiteTimeMs(data.whiteTimeMs);
+      if (data.blackTimeMs != null) setBlackTimeMs(data.blackTimeMs);
     };
 
     const handleDrawOffered = (data) => {
@@ -91,6 +99,16 @@ export const useGameSocket = (roomId, initialPlayerColor = null) => {
       if (data.blackTimeMs != null) setBlackTimeMs(data.blackTimeMs);
     };
 
+    const handleRematchOffered = (data) => {
+      setRematchOfferBy(data.offeredBy);
+      setRematchDeclined(false);
+    };
+
+    const handleRematchDeclined = () => {
+      setRematchOfferBy(null);
+      setRematchDeclined(true);
+    };
+
     const handleRematchStarted = (data) => {
       setRematchData(data);
     };
@@ -102,6 +120,8 @@ export const useGameSocket = (roomId, initialPlayerColor = null) => {
     socket.on("draw-offered", handleDrawOffered);
     socket.on("draw-declined", handleDrawDeclined);
     socket.on("timer-update", handleTimerUpdate);
+    socket.on("rematch-offered", handleRematchOffered);
+    socket.on("rematch-declined", handleRematchDeclined);
     socket.on("rematch-started", handleRematchStarted);
 
     return () => {
@@ -112,6 +132,8 @@ export const useGameSocket = (roomId, initialPlayerColor = null) => {
       socket.off("draw-offered", handleDrawOffered);
       socket.off("draw-declined", handleDrawDeclined);
       socket.off("timer-update", handleTimerUpdate);
+      socket.off("rematch-offered", handleRematchOffered);
+      socket.off("rematch-declined", handleRematchDeclined);
       socket.off("rematch-started", handleRematchStarted);
     };
   }, [roomId, initialPlayerColor]);
@@ -136,8 +158,18 @@ export const useGameSocket = (roomId, initialPlayerColor = null) => {
     socket.emit("decline-draw", { roomId });
   }, [roomId]);
 
-  const rematch = useCallback(() => {
+  const offerRematch = useCallback(() => {
+    socket.emit("offer-rematch", { roomId });
+    // Also support fallback trigger
     socket.emit("rematch", { roomId });
+  }, [roomId]);
+
+  const acceptRematch = useCallback(() => {
+    socket.emit("accept-rematch", { roomId });
+  }, [roomId]);
+
+  const declineRematch = useCallback(() => {
+    socket.emit("decline-rematch", { roomId });
   }, [roomId]);
 
   return {
@@ -157,13 +189,18 @@ export const useGameSocket = (roomId, initialPlayerColor = null) => {
     blackTimeMs,
     timeControl,
     rematchData,
+    rematchOfferBy,
+    rematchDeclined,
     isLoading: !playerColor && !error,
     makeMove,
     resign,
     offerDraw,
     acceptDraw,
     declineDraw,
-    rematch,
+    offerRematch,
+    acceptRematch,
+    declineRematch,
+    rematch: offerRematch,
     setRematchData,
   };
 };

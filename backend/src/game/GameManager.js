@@ -32,6 +32,7 @@ class GameManager {
       status: room.status,
       turn: room.getCurrentTurn(),
       drawOfferBy: room.drawOfferBy || null,
+      rematchOfferBy: room.rematchOfferBy || null,
       turnStartedAt: room.turnStartedAt || new Date().toISOString(),
       createdAt: room.createdAt,
       timeControl: room.timeControl,
@@ -57,6 +58,7 @@ class GameManager {
     room.blackPlayerUsername = gameData.blackPlayerUsername;
     room.status = gameData.status || "playing";
     room.drawOfferBy = gameData.drawOfferBy || null;
+    room.rematchOfferBy = gameData.rematchOfferBy || null;
     room.turnStartedAt = gameData.turnStartedAt || new Date().toISOString();
     room.createdAt = gameData.createdAt ? new Date(gameData.createdAt) : new Date();
     room.endReason = gameData.endReason || null;

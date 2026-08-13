@@ -7,6 +7,7 @@ import { UserCircle2, Trophy, AlertCircle, LogOut, RotateCcw, Plus } from "lucid
 import { useEffect, useRef, useState } from "react";
 import confetti from "canvas-confetti";
 import VoiceMoveButton from "../components/VoiceMoveButton.jsx";
+import SiteFooter from "../components/layout/SiteFooter.jsx";
 
 const PIECE_IMAGES = {
   wp: "/chess-01.png", wn: "/chess-02.png", wb: "/chess-03.png", wr: "/chess-04.png",
@@ -109,7 +110,11 @@ function PlayGameView({ roomId }) {
     offerDraw,
     acceptDraw,
     declineDraw,
-    rematch,
+    offerRematch,
+    acceptRematch,
+    declineRematch,
+    rematchOfferBy,
+    rematchDeclined,
     rematchData,
     setRematchData,
   } = useGameSocket(roomId, initialColor);
@@ -167,35 +172,31 @@ function PlayGameView({ roomId }) {
   }, [rematchData, navigate, setRematchData]);
 
   useEffect(() => {
-    try {
-      const fenParts = (boardFen || "").split(" ")[0] || "";
-      const pieces = fenParts.replace(/[0-9]/g, (d) => " ".repeat(parseInt(d))).replace(/\//g, " ");
-      const initialCounts = { p: 8, n: 2, b: 2, r: 2, q: 1 };
-      const currentCounts = { p: 0, n: 0, b: 0, r: 0, q: 0 };
-      for (const ch of pieces) {
-        if (ch === " ") continue;
-        const type = ch.toLowerCase();
-        if (currentCounts[type] !== undefined) currentCounts[type]++;
+    if (boardFen) {
+      try {
+        const fenParts = boardFen.split(" ");
+        const placement = fenParts[0];
+        const counts = { p: 0, n: 0, b: 0, r: 0, q: 0, P: 0, N: 0, B: 0, R: 0, Q: 0 };
+        for (const char of placement) {
+          if (counts[char] !== undefined) counts[char]++;
+        }
+        const capturedByWhite = {};
+        const capturedByBlack = {};
+
+        const initialCounts = { p: 8, n: 2, b: 2, r: 2, q: 1 };
+        for (const [type, init] of Object.entries(initialCounts)) {
+          const whiteLost = init - counts[type.toUpperCase()];
+          const blackLost = init - counts[type];
+          if (whiteLost > 0) capturedByBlack[type] = whiteLost;
+          if (blackLost > 0) capturedByWhite[type] = blackLost;
+        }
+        const values = { p: 1, n: 3, b: 3, r: 5, q: 9 };
+        const whiteVal = Object.entries(capturedByWhite).reduce((s, [t, c]) => s + values[t] * c, 0);
+        const blackVal = Object.entries(capturedByBlack).reduce((s, [t, c]) => s + values[t] * c, 0);
+        setCapturedValues({ white: whiteVal, black: blackVal });
+      } catch {
+        setCapturedValues({ white: 0, black: 0 });
       }
-      const capturedByWhite = { p: 0, n: 0, b: 0, r: 0, q: 0 };
-      const capturedByBlack = { p: 0, n: 0, b: 0, r: 0, q: 0 };
-      for (const [type, initial] of Object.entries(initialCounts)) {
-        const current = currentCounts[type] || 0;
-        const totalExpectedOnBoard = initial * 2;
-        const remaining = Math.min(current, initial);
-        const missingFromWhite = initial - remaining;
-        const missingFromBlack = totalExpectedOnBoard - current - missingFromWhite;
-        const whiteLost = initial - (current >= initial ? initial : current);
-        const blackLost = initial - (current >= initial ? current - initial : 0);
-        if (whiteLost > 0) capturedByBlack[type] = whiteLost;
-        if (blackLost > 0) capturedByWhite[type] = blackLost;
-      }
-      const values = { p: 1, n: 3, b: 3, r: 5, q: 9 };
-      const whiteVal = Object.entries(capturedByWhite).reduce((s, [t, c]) => s + values[t] * c, 0);
-      const blackVal = Object.entries(capturedByBlack).reduce((s, [t, c]) => s + values[t] * c, 0);
-      setCapturedValues({ white: whiteVal, black: blackVal });
-    } catch {
-      setCapturedValues({ white: 0, black: 0 });
     }
   }, [boardFen]);
 
@@ -208,9 +209,16 @@ function PlayGameView({ roomId }) {
     navigate("/home");
   };
 
-  const handleRematch = () => {
-    setShowGameOverPopup(false);
-    rematch();
+  const handleOfferRematch = () => {
+    offerRematch();
+  };
+
+  const handleAcceptRematch = () => {
+    acceptRematch();
+  };
+
+  const handleDeclineRematch = () => {
+    declineRematch();
   };
 
   const handleNewMatch = () => {
@@ -248,29 +256,6 @@ function PlayGameView({ roomId }) {
             </div>
           </div>
           <div />
-
-          {showResignConfirm && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-              <div className="bg-white rounded-2xl p-6 shadow-2xl border border-accent/20 max-w-sm mx-4">
-                <h3 className="text-lg font-bold text-center mb-2">Resign Game?</h3>
-                <p className="text-sm text-ink/60 text-center mb-5">Are you sure you want to resign? This will count as a loss.</p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setShowResignConfirm(false)}
-                    className="flex-1 rounded-lg border border-accent px-4 py-2.5 text-sm font-medium hover:bg-accent/10"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleResign}
-                    className="flex-1 rounded-lg bg-red-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-600"
-                  >
-                    Resign
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
@@ -388,7 +373,7 @@ function PlayGameView({ roomId }) {
                     disabled={!playerColor}
                     className="w-full rounded-lg border border-red-300 text-red-600 px-3 py-2 text-xs font-medium hover:bg-red-50 disabled:opacity-50"
                   >
-                    Resign
+                    Resign Game
                   </button>
                 </div>
               ) : (
@@ -403,15 +388,15 @@ function PlayGameView({ roomId }) {
               )}
             </div>
 
-            <div className="bg-white border border-accent/40 rounded-2xl flex flex-col shadow-lg shadow-accent/5 overflow-hidden flex-1 max-h-[320px]">
-              <div className="p-3 border-b border-accent/30 bg-cream/30">
-                <h3 className="font-bold text-sm">Move History</h3>
+            <div className="bg-white border border-accent/40 rounded-2xl flex flex-col shadow-lg shadow-accent/5 overflow-hidden flex-1 max-h-[360px]">
+              <div className="p-3.5 border-b border-accent/30 bg-cream/30">
+                <h3 className="font-bold text-base">Move History</h3>
               </div>
-              <div className="p-3 overflow-y-auto flex-1 font-mono text-xs">
+              <div className="p-3.5 overflow-y-auto flex-1 font-mono text-xs">
                 {moves.length === 0 ? (
                   <p className="text-ink/40 text-center py-6">No moves yet</p>
                 ) : (
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
                     {moves
                       .reduce((result, move, index) => {
                         const moveIndex = Math.floor(index / 2);
@@ -425,7 +410,7 @@ function PlayGameView({ roomId }) {
                       .map((pair, i) => (
                         <div
                           key={i}
-                          className="col-span-2 flex items-center gap-3 py-1 border-b border-accent/10 last:border-0 hover:bg-accent/5 px-1.5 rounded"
+                          className="col-span-2 flex items-center gap-3 py-0.5 border-b border-accent/10 last:border-0 hover:bg-accent/5 px-2 rounded"
                         >
                           <span className="text-ink/30 w-5 text-right">{i + 1}.</span>
                           <span className="flex-1 font-medium">{pair.white}</span>
@@ -440,6 +425,13 @@ function PlayGameView({ roomId }) {
         </div>
       </main>
 
+      {showResignConfirm && (
+        <ResignModal
+          onConfirm={handleResign}
+          onCancel={() => setShowResignConfirm(false)}
+        />
+      )}
+
       {showGameOverPopup && (
         <GameOverPopup
           winner={winner}
@@ -449,10 +441,16 @@ function PlayGameView({ roomId }) {
           reasonLabel={reasonLabel}
           resolvedWhitePlayer={resolvedWhitePlayer}
           resolvedBlackPlayer={resolvedBlackPlayer}
-          onRematch={handleRematch}
+          rematchOfferBy={rematchOfferBy}
+          rematchDeclined={rematchDeclined}
+          onOfferRematch={handleOfferRematch}
+          onAcceptRematch={handleAcceptRematch}
+          onDeclineRematch={handleDeclineRematch}
           onNewMatch={handleNewMatch}
         />
       )}
+
+      <SiteFooter />
     </div>
   );
 }
@@ -472,15 +470,51 @@ function GameOverContent({ winner, winnerUsername, resolvedWhitePlayer, resolved
   );
 }
 
+function ResignModal({ onConfirm, onCancel }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white rounded-3xl p-7 shadow-2xl border border-accent/20 max-w-sm w-full mx-4 text-center">
+        <div className="w-14 h-14 rounded-2xl bg-red-50 text-red-500 flex items-center justify-center mx-auto mb-4 border border-red-100">
+          <LogOut size={28} />
+        </div>
+        <h3 className="text-xl font-bold text-ink mb-1">Resign Game?</h3>
+        <p className="text-sm text-ink/60 mb-6">
+          Are you sure you want to forfeit this match? This will count as a loss.
+        </p>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 rounded-xl border border-accent/40 px-4 py-3 text-sm font-semibold hover:bg-accent/10 transition"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="flex-1 rounded-xl bg-red-500 px-4 py-3 text-sm font-bold text-white hover:bg-red-600 shadow-md shadow-red-500/20 transition"
+          >
+            Yes, Resign
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function GameOverPopup({
   winner, winnerUsername, playerColor, userId, reasonLabel,
-  resolvedWhitePlayer, resolvedBlackPlayer, onRematch, onNewMatch,
+  resolvedWhitePlayer, resolvedBlackPlayer,
+  rematchOfferBy, rematchDeclined,
+  onOfferRematch, onAcceptRematch, onDeclineRematch, onNewMatch,
 }) {
   const isWinner = winner === playerColor;
+  const isMyOffer = rematchOfferBy && rematchOfferBy === userId;
+  const isOpponentOffer = rematchOfferBy && rematchOfferBy !== userId;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-3xl p-8 shadow-2xl border border-accent/20 max-w-sm mx-4 text-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white rounded-3xl p-8 shadow-2xl border border-accent/20 max-w-sm w-full mx-4 text-center">
         {isWinner ? (
           <div className="text-6xl mb-3">🏆</div>
         ) : (
@@ -494,16 +528,57 @@ function GameOverPopup({
         </p>
         {reasonLabel && <p className="text-xs text-ink/40 capitalize mb-5">{reasonLabel}</p>}
 
+        {isOpponentOffer ? (
+          <div className="mb-6 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-center animate-pulse">
+            <p className="text-xs font-bold text-emerald-800 uppercase tracking-wider mb-1">Rematch Request</p>
+            <p className="text-sm text-emerald-900 font-medium mb-3">
+              Opponent requested a rematch! Play again?
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={onAcceptRematch}
+                className="flex-1 rounded-xl bg-emerald-600 px-3 py-2.5 text-xs font-bold text-white hover:bg-emerald-700 shadow-md shadow-emerald-600/20 transition"
+              >
+                Accept Rematch
+              </button>
+              <button
+                type="button"
+                onClick={onDeclineRematch}
+                className="rounded-xl border border-emerald-300 px-3 py-2.5 text-xs font-medium text-emerald-800 hover:bg-emerald-100 transition"
+              >
+                Decline
+              </button>
+            </div>
+          </div>
+        ) : isMyOffer ? (
+          <div className="mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-center">
+            <p className="text-sm text-amber-800 font-medium flex items-center justify-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+              Waiting for opponent to respond...
+            </p>
+          </div>
+        ) : rematchDeclined ? (
+          <div className="mb-6 p-3 rounded-2xl bg-red-50 border border-red-200 text-xs text-red-600 font-medium">
+            Opponent declined the rematch.
+          </div>
+        ) : null}
+
         <div className="flex gap-3">
+          {!isOpponentOffer && (
+            <button
+              type="button"
+              onClick={onOfferRematch}
+              disabled={Boolean(isMyOffer)}
+              className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-cream hover:opacity-90 transition disabled:opacity-50 shadow-md shadow-primary/20"
+            >
+              <RotateCcw size={16} /> {isMyOffer ? "Offered..." : "Rematch"}
+            </button>
+          )}
           <button
-            onClick={onRematch}
-            className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-cream hover:opacity-90 transition"
-          >
-            <RotateCcw size={16} /> Rematch
-          </button>
-          <button
+            type="button"
             onClick={onNewMatch}
-            className="flex-1 rounded-xl border border-accent px-5 py-3 text-sm font-medium hover:bg-accent/10 transition"
+            className="flex-1 rounded-xl border border-accent/40 px-5 py-3 text-sm font-medium hover:bg-accent/10 transition"
           >
             New Match
           </button>

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../hooks/useSocket";
 import SiteHeader from "../components/layout/SiteHeader.jsx";
+import SiteFooter from "../components/layout/SiteFooter.jsx";
 import { Link, useNavigate } from "react-router-dom";
 import { gameService } from "../services/api.js";
 
@@ -229,6 +230,7 @@ export default function Home() {
           </div>
         </div>
       </main>
+      <SiteFooter />
     </div>
   );
 }
