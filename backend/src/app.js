@@ -12,6 +12,10 @@ import friendRoutes from "./routes/friend.routes.js";
 
 const app = express();
 
+if (env.NODE_ENV === "production") {
+  app.set("trust proxy", 1);
+}
+
 // Security Middleware
 app.use(helmet());
 

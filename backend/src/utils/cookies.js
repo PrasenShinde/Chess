@@ -2,10 +2,11 @@ import { env } from "../config/env.js";
 import { setCsrfCookie, clearCsrfCookie } from "./csrf.js";
 
 export const setAuthCookies = (res, accessToken, refreshToken) => {
+  const isProd = env.NODE_ENV === "production";
   const cookieOptions = {
     httpOnly: true,
-    secure: env.NODE_ENV === "production",
-    sameSite: "strict",
+    secure: isProd,
+    sameSite: isProd ? "none" : "lax",
     path: "/",
   };
 
@@ -23,10 +24,11 @@ export const setAuthCookies = (res, accessToken, refreshToken) => {
 };
 
 export const clearAuthCookies = (res) => {
+  const isProd = env.NODE_ENV === "production";
   const cookieOptions = {
     httpOnly: true,
-    secure: env.NODE_ENV === "production",
-    sameSite: "strict",
+    secure: isProd,
+    sameSite: isProd ? "none" : "lax",
     path: "/",
   };
 
