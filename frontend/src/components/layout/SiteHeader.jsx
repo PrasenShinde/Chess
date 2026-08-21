@@ -50,9 +50,36 @@ export default function SiteHeader() {
             </>
           )}
           {user && (
-            <NavLink to="/profile" className={linkClass}>
-              Profile
-            </NavLink>
+            <>
+              <NavLink
+                to="/friends"
+                className={({ isActive }) =>
+                  `rounded px-4 py-2 text-sm font-medium transition-colors border ${
+                    isActive
+                      ? "border-primary bg-primary text-cream"
+                      : isHome
+                      ? "border-white/40 text-white hover:bg-white hover:text-ink"
+                      : "border-accent/60 bg-white text-ink hover:bg-accent/10"
+                  }`
+                }
+              >
+                Friends
+              </NavLink>
+              <NavLink
+                to={`/profile/${user.username}`}
+                className={({ isActive }) =>
+                  `rounded px-4 py-2 text-sm font-medium transition-colors border ${
+                    isActive
+                      ? "border-primary bg-primary text-cream"
+                      : isHome
+                      ? "border-white/40 text-white hover:bg-white hover:text-ink"
+                      : "border-accent/60 bg-white text-ink hover:bg-accent/10"
+                  }`
+                }
+              >
+                Profile
+              </NavLink>
+            </>
           )}
         </nav>
       </div>

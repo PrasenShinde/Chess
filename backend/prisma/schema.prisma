@@ -36,12 +36,37 @@ model User {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   
-  refreshTokens RefreshToken[]
-  whiteGames    Game[]         @relation("WhitePlayer")
-  blackGames    Game[]         @relation("BlackPlayer")
-  wonGames      Game[]         @relation("Winner")
+  refreshTokens          RefreshToken[]
+  whiteGames             Game[]          @relation("WhitePlayer")
+  blackGames             Game[]          @relation("BlackPlayer")
+  wonGames               Game[]          @relation("Winner")
+  sentFriendRequests     FriendRequest[] @relation("SentFriendRequests")
+  receivedFriendRequests FriendRequest[] @relation("ReceivedFriendRequests")
 
   @@map("users")
+}
+
+enum FriendRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+model FriendRequest {
+  id         String              @id @default(uuid())
+  senderId   String
+  sender     User                @relation("SentFriendRequests", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId String
+  receiver   User                @relation("ReceivedFriendRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+  status     FriendRequestStatus @default(PENDING)
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  @@unique([senderId, receiverId])
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([status])
+  @@map("friend_requests")
 }
 
 model RefreshToken {

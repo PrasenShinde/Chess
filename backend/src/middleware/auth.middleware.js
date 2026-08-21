@@ -49,3 +49,38 @@ export const requireRole = (roles) => {
     next();
   };
 };
+
+export const optionalAuth = async (req, res, next) => {
+  const { accessToken } = req.cookies;
+
+  if (!accessToken) {
+    return next();
+  }
+
+  const decoded = verifyAccessToken(accessToken);
+  if (!decoded) {
+    return next();
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        avatar: true,
+        rating: true,
+        role: true,
+      },
+    });
+
+    if (user) {
+      req.user = user;
+    }
+  } catch (error) {
+    console.error("Optional auth error:", error);
+  }
+  next();
+};
+

@@ -5,6 +5,7 @@ import { handleConnection } from "./handlers/connection.js";
 import { handleDisconnect } from "./handlers/disconnect.js";
 import { registerGameHandlers } from "./handlers/gameHandlers.js";
 import { registerRoomHandlers } from "./handlers/roomHandlers.js";
+import { registerChallengeHandlers } from "./handlers/challengeHandlers.js";
 import { initMatchmaker } from "../services/Matchmaker.js";
 import gameManager from "../game/GameManager.js";
 
@@ -28,9 +29,10 @@ export const initializeSocket = (httpServer) => {
     // Handle new connection
     handleConnection(io, socket);
 
-    // Register game and room handlers
+    // Register game, room, and challenge handlers
     registerGameHandlers(io, socket);
     registerRoomHandlers(io, socket);
+    registerChallengeHandlers(io, socket);
 
     // Handle disconnect
     socket.on("disconnect", () => {

@@ -136,3 +136,33 @@ export const gameService = {
   getStats: () => fetchApi("/games/stats"),
   getRecentGames: () => fetchApi("/games/recent"),
 };
+
+export const userService = {
+  searchUser: (username, signal) => fetchApi(`/users/search?username=${encodeURIComponent(username)}`, { signal }),
+  getPublicProfile: (username, signal) => fetchApi(`/users/profile/${encodeURIComponent(username)}`, { signal }),
+};
+
+export const friendService = {
+  sendFriendRequest: (receiverId) =>
+    fetchApi("/friends/request", {
+      method: "POST",
+      body: JSON.stringify({ receiverId }),
+    }),
+  acceptFriendRequest: (friendId, requestId) =>
+    fetchApi("/friends/accept", {
+      method: "POST",
+      body: JSON.stringify({ friendId, requestId }),
+    }),
+  rejectFriendRequest: (friendId, requestId) =>
+    fetchApi("/friends/reject", {
+      method: "POST",
+      body: JSON.stringify({ friendId, requestId }),
+    }),
+  removeFriend: (friendId) =>
+    fetchApi("/friends/remove", {
+      method: "POST",
+      body: JSON.stringify({ friendId }),
+    }),
+  getFriends: () => fetchApi("/friends"),
+};
+

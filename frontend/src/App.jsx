@@ -6,6 +6,8 @@ import Home from './pages/Home.jsx'
 import ProfilePage from './pages/ProfilePage.jsx'
 import PlayGame from './pages/PlayGame.jsx'
 import LearnPage from './pages/LearnPage.jsx'
+import FriendsPage from './pages/FriendsPage.jsx'
+import ChallengeModal from './components/challenge/ChallengeModal.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
 import ProtectedRoute from './components/auth/ProtectedRoute.jsx'
 import GuestRoute from './components/auth/GuestRoute.jsx'
@@ -27,6 +29,7 @@ function NotFound() {
 function App() {
   return (
     <AuthProvider>
+      <ChallengeModal />
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />
@@ -34,7 +37,9 @@ function App() {
         <Route path="/learn" element={<LearnPage />} />
         <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
         <Route path="/dashboard" element={<Navigate to="/home" replace />} />
+        <Route path="/friends" element={<ProtectedRoute><FriendsPage /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+        <Route path="/profile/:username" element={<ProfilePage />} />
         <Route path="/playing/:roomId" element={<ProtectedRoute><PlayGame /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
