@@ -19,10 +19,12 @@ if (env.NODE_ENV === "production") {
 // Security Middleware
 app.use(helmet());
 
+const frontendOrigin = (env.FRONTEND_URL || process.env.FRONTEND_URL || "http://localhost:5173").trim().replace(/\/+$/, "");
+
 // CORS configuration (allow credentials for cookies)
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL,
+    origin: frontendOrigin,
     credentials: true,
   })
 );

@@ -10,9 +10,11 @@ import { initMatchmaker } from "../services/Matchmaker.js";
 import gameManager from "../game/GameManager.js";
 
 export const initializeSocket = (httpServer) => {
+  const allowedOrigin = (env.FRONTEND_URL || "http://localhost:5173").trim().replace(/\/+$/, "");
+
   const io = new Server(httpServer, {
     cors: {
-      origin: env.FRONTEND_URL,
+      origin: allowedOrigin,
       methods: ["GET", "POST"],
       credentials: true,
     },

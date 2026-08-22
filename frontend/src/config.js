@@ -1,17 +1,25 @@
-const rawApiUrl = import.meta.env.VITE_API_URL || "/api";
+const rawApiUrl = (import.meta.env.VITE_API_URL || "").trim().replace(/\/+$/, "");
 
-export const API_URL = rawApiUrl;
+let resolvedApiUrl = "/api";
+let resolvedSocketUrl = "http://localhost:3000";
 
-let defaultSocketUrl = "http://localhost:3000";
-if (rawApiUrl.startsWith("http")) {
-  try {
-    const parsed = new URL(rawApiUrl);
-    defaultSocketUrl = parsed.origin;
-  } catch (err) {
-    console.error("Invalid VITE_API_URL format", err);
+if (rawApiUrl) {
+  if (rawApiUrl.startsWith("http://") || rawApiUrl.startsWith("https://")) {
+    try {
+      const parsed = new URL(rawApiUrl);
+      resolvedSocketUrl = parsed.origin;
+      resolvedApiUrl = parsed.pathname.endsWith("/api")
+        ? rawApiUrl
+        : `${parsed.origin}/api`;
+    } catch {
+      resolvedApiUrl = rawApiUrl;
+    }
+  } else {
+    resolvedApiUrl = rawApiUrl.endsWith("/api") ? rawApiUrl : `${rawApiUrl}/api`;
   }
 } else if (!import.meta.env.DEV && typeof window !== "undefined") {
-  defaultSocketUrl = window.location.origin;
+  resolvedSocketUrl = window.location.origin;
 }
 
-export const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || defaultSocketUrl;
+export const API_URL = resolvedApiUrl;
+export const SOCKET_URL = (import.meta.env.VITE_SOCKET_URL || resolvedSocketUrl).trim().replace(/\/+$/, "");
