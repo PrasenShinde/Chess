@@ -3,12 +3,22 @@ import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { env } from "../config/env.js";
 import prisma from "../prisma/client.js";
 
+const getCallbackURL = () => {
+  if (env.BACKEND_URL) {
+    return `${env.BACKEND_URL.trim().replace(/\/+$/, "")}/api/auth/callback/google`;
+  }
+  if (env.NODE_ENV === "production") {
+    return "https://pixel64.onrender.com/api/auth/callback/google";
+  }
+  return "http://localhost:3000/api/auth/callback/google";
+};
+
 passport.use(
   new GoogleStrategy(
     {
       clientID: env.GOOGLE_CLIENT_ID,
       clientSecret: env.GOOGLE_CLIENT_SECRET,
-      callbackURL: "/api/auth/callback/google",
+      callbackURL: getCallbackURL(),
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
